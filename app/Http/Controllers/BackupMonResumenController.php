@@ -12,15 +12,15 @@ class BackupMonResumenController extends Controller
 {
     public function Backup()
     {
-        $startDate = '2023-01-01 00:00:00';
-        $endDate   = '2023-01-31 23:59:59';
+        $startDate = '2023-02-01 00:00:00';
+        $endDate   = '2023-04-31 23:59:59';
 
         $backupDir = "/var/backups_db_cyberline/monResumen";
         if (!File::exists($backupDir)) {
             File::makeDirectory($backupDir, 0755, true);
         }
 
-        $fileName = "monResumen_backup_2023_01.sql";
+        $fileName = "monResumen_backup_" . str_replace([' ', ':'], ['_', '-'], $startDate) . "_a_" . str_replace([' ', ':'], ['_', '-'], $endDate) . ".sql";
         $filePath = "{$backupDir}/{$fileName}";
 
         // Datos desde .env
