@@ -4,6 +4,7 @@ use App\Http\Controllers\ActualizarConexionPadreController;
 use App\Http\Controllers\ActualizarMonitoreoController;
 use App\Http\Controllers\Api\Facturacion\NotasCredito\NotasCreditoController;
 use App\Http\Controllers\Api\Facturacion\NotasCredito\NotasDebitoController;
+use App\Http\Controllers\BackupMonResumenController;
 use App\Http\Controllers\Correo\CorreoMonitoreoController;
 use App\Http\Controllers\InformarConexionController;
 use App\Http\Controllers\InformarConexionHijoController;
@@ -75,3 +76,5 @@ Route::get('/correo-invoice/notas-credito/{correlativo}', [NotasCreditoControlle
 
 Route::get('/correo-invoice/notas-debito/{correlativo}', [NotasDebitoController::class, 'generateMailInvoiceNotasDebito']);
 
+// Host New
+Route::get('/backup-resumen-auto', [BackupMonResumenController::class, 'Backup']);
