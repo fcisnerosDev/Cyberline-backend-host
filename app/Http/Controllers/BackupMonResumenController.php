@@ -29,11 +29,11 @@ class BackupMonResumenController extends Controller
         $filePath = "{$backupDir}/{$fileName}";
 
         // Configuración DB remota (host, puerto, user, pass, base)
-        $host = env('DB_PADRE_HOST', '127.0.0.1');
+        $host = env('DB_PADRE_HOST', '192.168.2.243');
         $port = env('DB_PADRE_PORT', 3306);
         $db   = env('DB_PADRE_DATABASE', 'cyberline');
         $user = env('DB_PADRE_USERNAME', 'root');
-        $pass = env('DB_PADRE_PASSWORD', '');
+        $pass = env('DB_PADRE_PASSWORD', 'cl75nt5000');
 
         // Condición para mysqldump y para eliminar registros
         $where = "fechaCreacion >= '{$startDate}' AND fechaCreacion <= '{$endDate}'";
