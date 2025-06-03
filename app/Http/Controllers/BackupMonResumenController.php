@@ -29,7 +29,7 @@ class BackupMonResumenController extends Controller
 
         $startDate = "{$currentYear}-01-01 00:00:00";
         $endDate   = "{$currentYear}-12-31 23:59:59";
-        $backupDir = "/root/backups-automatizado/monResumen";
+        $backupDir = '/var/backups_db_cyberline/monResumen';
 
         // Validar existencia de ruta
         $rutaExiste = File::exists($backupDir);
