@@ -18,76 +18,162 @@ use Illuminate\Support\Facades\DB;
 
 class SyncCybernetOldController extends Controller
 {
-
     public function UpdateMonitoreoData()
-    {
-        $idNodos = $this->getValidNodoIdForCybernetPrimary();
+{
+    $idNodos = $this->getValidNodoIdForCybernetPrimary();
 
-        if ($idNodos->isEmpty()) {
-            return response()->json([
-                "status" => "error",
-                "message" => "No se encontraron nodos válidos para la sincronización."
-            ], 400);
+    if ($idNodos->isEmpty()) {
+        echo "No se encontraron nodos válidos para la sincronización." . PHP_EOL;
+        return response()->json([
+            "status" => "error",
+            "message" => "No se encontraron nodos válidos para la sincronización."
+        ], 400);
+    }
+
+    $sysNodos = SysNodo::whereIn('idNodo', $idNodos)->get();
+    $updatedRecords = [];
+
+    foreach ($sysNodos as $sysNodo) {
+        echo "------" . PHP_EOL;
+        echo "Nodo: {$sysNodo->idNodo}" . PHP_EOL;
+        echo "urlWs original: {$sysNodo->urlWs}" . PHP_EOL;
+
+        $url = rtrim($sysNodo->urlWs, '/') . "/sync.php";
+        echo "URL construida: $url" . PHP_EOL;
+
+        try {
+            $response = Http::get($url);
+        } catch (\Exception $e) {
+            echo "Error en la solicitud HTTP: " . $e->getMessage() . PHP_EOL;
+            continue;
         }
 
-        $sysNodos = SysNodo::whereIn('idNodo', $idNodos)->get();
-        $updatedRecords = [];
+        if ($response->successful()) {
+            echo "Respuesta recibida correctamente." . PHP_EOL;
+            $data = $response->json();
 
-        foreach ($sysNodos as $sysNodo) {
-            $url = rtrim($sysNodo->urlWs, '/') . "/sync.php";
-            $response = Http::get($url);
+            DB::statement('SET @DISABLE_TRIGGER = 1;');
 
-            if ($response->successful()) {
-                $data = $response->json();
-
-                DB::statement('SET @DISABLE_TRIGGER = 1;'); // Desactivar triggers
-
-                foreach ($data['data'] as $item) {
-                    // Limpiar campos de fecha inválidos
-                    foreach ($item as $key => $value) {
-                        if (Str::startsWith($key, 'fecha')) {
-                            $item[$key] = $this->limpiarFecha($value);
-                        }
+            foreach ($data['data'] as $item) {
+                foreach ($item as $key => $value) {
+                    if (Str::startsWith($key, 'fecha')) {
+                        $item[$key] = $this->limpiarFecha($value);
                     }
-
-                    DB::table('monMonitoreo')->updateOrInsert(
-                        ['idMonitoreo' => $item['idMonitoreo']],
-                        [
-                            'idNodoPerspectiva'        => $item['idNodoPerspectiva'],
-                            'flgStatus'                => $item['flgStatus'],
-                            'flgEstado'                => $item['flgEstado'],
-                            'fechaUltimaVerificacion' => $item['fechaUltimaVerificacion'],
-                            'fechaUltimoCambio'       => $item['fechaUltimoCambio'],
-                            'flgSyncHijo'              => "1"
-                        ]
-                    );
-
-                    $updatedRecords[] = [
-                        "idNodo"            => $sysNodo->idNodo,
-                        "idMonitoreo"       => $item['idMonitoreo'],
-                        "idNodoPerspectiva" => $item['idNodoPerspectiva'],
-                        "flgStatus"         => $item['flgStatus'],
-                        'fechaUltimaVerificacion' => $item['fechaUltimaVerificacion'],
-                        'fechaUltimoCambio'       => $item['fechaUltimoCambio'],
-                        "flgEstado"         => $item['flgEstado']
-                    ];
                 }
 
-                DB::statement('SET @DISABLE_TRIGGER = NULL;'); // Reactivar triggers
-            } else {
-                return response()->json([
-                    "status"  => "error",
-                    "message" => "No se pudo obtener los datos de $url"
-                ], 500);
-            }
-        }
+                DB::table('monMonitoreo')->updateOrInsert(
+                    ['idMonitoreo' => $item['idMonitoreo']],
+                    [
+                        'idNodoPerspectiva'        => $item['idNodoPerspectiva'],
+                        'flgStatus'                => $item['flgStatus'],
+                        'flgEstado'                => $item['flgEstado'],
+                        'fechaUltimaVerificacion' => $item['fechaUltimaVerificacion'],
+                        'fechaUltimoCambio'       => $item['fechaUltimoCambio'],
+                        'flgSyncHijo'              => "1"
+                    ]
+                );
 
-        return response()->json([
-            "status"          => "success",
-            "message"         => "Datos sincronizados correctamente.",
-            "updated_records" => $updatedRecords,
-        ]);
+                $updatedRecords[] = [
+                    "idNodo"            => $sysNodo->idNodo,
+                    "idMonitoreo"       => $item['idMonitoreo'],
+                    "idNodoPerspectiva" => $item['idNodoPerspectiva'],
+                    "flgStatus"         => $item['flgStatus'],
+                    'fechaUltimaVerificacion' => $item['fechaUltimaVerificacion'],
+                    'fechaUltimoCambio'       => $item['fechaUltimoCambio'],
+                    "flgEstado"         => $item['flgEstado']
+                ];
+            }
+
+            DB::statement('SET @DISABLE_TRIGGER = NULL;');
+        } else {
+            echo "Fallo al obtener datos de $url - Código HTTP: " . $response->status() . PHP_EOL;
+            return response()->json([
+                "status"  => "error",
+                "message" => "No se pudo obtener los datos de $url"
+            ], 500);
+        }
     }
+
+    echo "------" . PHP_EOL;
+    echo "Total de registros actualizados: " . count($updatedRecords) . PHP_EOL;
+
+    return response()->json([
+        "status"          => "success",
+        "message"         => "Datos sincronizados correctamente.",
+        "updated_records" => $updatedRecords,
+    ]);
+}
+
+
+    // public function UpdateMonitoreoData()
+    // {
+    //     $idNodos = $this->getValidNodoIdForCybernetPrimary();
+
+    //     if ($idNodos->isEmpty()) {
+    //         return response()->json([
+    //             "status" => "error",
+    //             "message" => "No se encontraron nodos válidos para la sincronización."
+    //         ], 400);
+    //     }
+
+    //     $sysNodos = SysNodo::whereIn('idNodo', $idNodos)->get();
+    //     $updatedRecords = [];
+
+    //     foreach ($sysNodos as $sysNodo) {
+    //         $url = rtrim($sysNodo->urlWs, '/') . "/sync.php";
+    //         $response = Http::get($url);
+
+    //         if ($response->successful()) {
+    //             $data = $response->json();
+
+    //             DB::statement('SET @DISABLE_TRIGGER = 1;'); // Desactivar triggers
+
+    //             foreach ($data['data'] as $item) {
+    //                 // Limpiar campos de fecha inválidos
+    //                 foreach ($item as $key => $value) {
+    //                     if (Str::startsWith($key, 'fecha')) {
+    //                         $item[$key] = $this->limpiarFecha($value);
+    //                     }
+    //                 }
+
+    //                 DB::table('monMonitoreo')->updateOrInsert(
+    //                     ['idMonitoreo' => $item['idMonitoreo']],
+    //                     [
+    //                         'idNodoPerspectiva'        => $item['idNodoPerspectiva'],
+    //                         'flgStatus'                => $item['flgStatus'],
+    //                         'flgEstado'                => $item['flgEstado'],
+    //                         'fechaUltimaVerificacion' => $item['fechaUltimaVerificacion'],
+    //                         'fechaUltimoCambio'       => $item['fechaUltimoCambio'],
+    //                         'flgSyncHijo'              => "1"
+    //                     ]
+    //                 );
+
+    //                 $updatedRecords[] = [
+    //                     "idNodo"            => $sysNodo->idNodo,
+    //                     "idMonitoreo"       => $item['idMonitoreo'],
+    //                     "idNodoPerspectiva" => $item['idNodoPerspectiva'],
+    //                     "flgStatus"         => $item['flgStatus'],
+    //                     'fechaUltimaVerificacion' => $item['fechaUltimaVerificacion'],
+    //                     'fechaUltimoCambio'       => $item['fechaUltimoCambio'],
+    //                     "flgEstado"         => $item['flgEstado']
+    //                 ];
+    //             }
+
+    //             DB::statement('SET @DISABLE_TRIGGER = NULL;'); // Reactivar triggers
+    //         } else {
+    //             return response()->json([
+    //                 "status"  => "error",
+    //                 "message" => "No se pudo obtener los datos de $url"
+    //             ], 500);
+    //         }
+    //     }
+
+    //     return response()->json([
+    //         "status"          => "success",
+    //         "message"         => "Datos sincronizados correctamente.",
+    //         "updated_records" => $updatedRecords,
+    //     ]);
+    // }
 
     // Función para limpiar fechas inválidas
     private function limpiarFecha($valor)
