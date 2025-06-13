@@ -47,6 +47,10 @@ Route::get('/recover-monitoreo/{idNodo?}', [SyncCybernetOldController::class, 'D
 Route::get('/recover-monitoreo-cliente', [SyncCybernetOldController::class, 'obtenerMonitoreosCliente']);
 
 Route::get('/recover-servicios/{idNodo?}', [SyncCybernetOldController::class, 'DataServicios']);
+Route::get('/recover-maestros/{idNodo?}', [SyncCybernetOldController::class, 'DataMaestro']);
+Route::get('/recover-ips/{idNodo?}', [SyncCybernetOldController::class, 'DataIP']);
+Route::get('/recover-equipos/{idNodo?}', [SyncCybernetOldController::class, 'DataEquipo']);
+Route::get('/recover-frecuencia/{idNodo?}', [SyncCybernetOldController::class, 'DataEquipo']);
 
 Route::get('/recover-servicios-update', [SyncCybernetOldController::class, 'obtenerServiciosCliente']);
 
