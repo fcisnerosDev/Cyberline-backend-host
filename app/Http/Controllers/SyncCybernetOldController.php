@@ -34,22 +34,22 @@ class SyncCybernetOldController extends Controller
     $updatedRecords = [];
 
     foreach ($sysNodos as $sysNodo) {
-        echo "------" . PHP_EOL;
-        echo "Nodo: {$sysNodo->idNodo}" . PHP_EOL;
-        echo "urlWs original: {$sysNodo->urlWs}" . PHP_EOL;
+        // echo "------" . PHP_EOL;
+        // echo "Nodo: {$sysNodo->idNodo}" . PHP_EOL;
+        // echo "urlWs original: {$sysNodo->urlWs}" . PHP_EOL;
 
         $url = rtrim($sysNodo->urlWs, '/') . "/sync.php";
-        echo "URL construida: $url" . PHP_EOL;
+        // echo "URL construida: $url" . PHP_EOL;
 
         try {
             $response = Http::get($url);
         } catch (\Exception $e) {
-            echo "Error en la solicitud HTTP: " . $e->getMessage() . PHP_EOL;
+            // echo "Error en la solicitud HTTP: " . $e->getMessage() . PHP_EOL;
             continue;
         }
 
         if ($response->successful()) {
-            echo "Respuesta recibida correctamente." . PHP_EOL;
+            // echo "Respuesta recibida correctamente." . PHP_EOL;
             $data = $response->json();
 
             DB::statement('SET @DISABLE_TRIGGER = 1;');
@@ -86,7 +86,7 @@ class SyncCybernetOldController extends Controller
 
             DB::statement('SET @DISABLE_TRIGGER = NULL;');
         } else {
-            echo "Fallo al obtener datos de $url - Código HTTP: " . $response->status() . PHP_EOL;
+            // echo "Fallo al obtener datos de $url - Código HTTP: " . $response->status() . PHP_EOL;
             return response()->json([
                 "status"  => "error",
                 "message" => "No se pudo obtener los datos de $url"
@@ -94,8 +94,8 @@ class SyncCybernetOldController extends Controller
         }
     }
 
-    echo "------" . PHP_EOL;
-    echo "Total de registros actualizados: " . count($updatedRecords) . PHP_EOL;
+    // echo "------" . PHP_EOL;
+    // echo "Total de registros actualizados: " . count($updatedRecords) . PHP_EOL;
 
     return response()->json([
         "status"          => "success",
