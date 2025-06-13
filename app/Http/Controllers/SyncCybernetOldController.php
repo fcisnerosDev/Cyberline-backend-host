@@ -1,6 +1,11 @@
 <?php
 
 namespace App\Http\Controllers;
+
+use App\Models\Equipo;
+use App\Models\Frecuencia;
+use App\Models\Ip;
+use App\Models\Maestro;
 use Illuminate\Support\Str;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
@@ -144,6 +149,31 @@ class SyncCybernetOldController extends Controller
             ->get();
     }
 
+    public function getFilteredMaestroData($idNodos)
+    {
+        return Maestro::where('flgEstado', "1")
+            ->whereIn('idNodoPerspectiva', $idNodos)
+            ->get();
+    }
+    public function getFilteredIpData($idNodos)
+    {
+        return Ip::where('flgEstado', "1")
+            ->whereIn('idNodoPerspectiva', $idNodos)
+            ->get();
+    }
+    public function getFilteredEquiposData($idNodos)
+    {
+        return Equipo::where('flgEstado', "1")
+            ->whereIn('idEquipoPerspectiva', $idNodos)
+            ->get();
+    }
+     public function getFilteredFrecuenciaData($idNodos)
+    {
+        return Frecuencia::where('flgEstado', "1")
+            ->whereIn('idNodoPerspectiva', $idNodos)
+            ->get();
+    }
+
     public function DataServicios($idNodo = null)
     {
         $idNodos = $this->getValidNodoId();
@@ -160,6 +190,80 @@ class SyncCybernetOldController extends Controller
 
         return response()->json([
             "Servicios" => $ServicioData,
+        ]);
+    }
+
+    public function DataMaestro($idNodo = null)
+    {
+        $idNodos = $this->getValidNodoId();
+        $idNodos = $this->getValidNodoId($idNodo);
+
+        if ($idNodos->isEmpty()) {
+            return response()->json([
+                "status" => "error",
+                "message" => "No se encontraron nodos válidos."
+            ], 404);
+        }
+
+        $MaestroData = $this->getFilteredMaestroData($idNodos);
+
+        return response()->json([
+            "Maestro" => $MaestroData,
+        ]);
+    }
+    public function DataIP($idNodo = null)
+    {
+        $idNodos = $this->getValidNodoId();
+        $idNodos = $this->getValidNodoId($idNodo);
+
+        if ($idNodos->isEmpty()) {
+            return response()->json([
+                "status" => "error",
+                "message" => "No se encontraron nodos válidos."
+            ], 404);
+        }
+
+        $DataIP = $this->getFilteredIpData($idNodos);
+
+        return response()->json([
+            "IP" => $DataIP,
+        ]);
+    }
+    public function DataEquipo($idNodo = null)
+    {
+        $idNodos = $this->getValidNodoId();
+        $idNodos = $this->getValidNodoId($idNodo);
+
+        if ($idNodos->isEmpty()) {
+            return response()->json([
+                "status" => "error",
+                "message" => "No se encontraron nodos válidos."
+            ], 404);
+        }
+
+        $DataEquipos = $this->getFilteredEquiposData($idNodos);
+
+        return response()->json([
+            "Equipos" => $DataEquipos,
+        ]);
+    }
+
+     public function DataFrecuencia($idNodo = null)
+    {
+        $idNodos = $this->getValidNodoId();
+        $idNodos = $this->getValidNodoId($idNodo);
+
+        if ($idNodos->isEmpty()) {
+            return response()->json([
+                "status" => "error",
+                "message" => "No se encontraron nodos válidos."
+            ], 404);
+        }
+
+        $DataFrecuencia = $this->getFilteredFrecuenciaData($idNodos);
+
+        return response()->json([
+            "Frecuencia" => $DataFrecuencia,
         ]);
     }
 
