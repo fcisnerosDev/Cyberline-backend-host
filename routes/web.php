@@ -9,6 +9,7 @@ use App\Http\Controllers\Correo\CorreoMonitoreoController;
 use App\Http\Controllers\InformarConexionController;
 use App\Http\Controllers\InformarConexionHijoController;
 use App\Http\Controllers\MailTestController;
+use App\Http\Controllers\NodoController;
 use App\Http\Controllers\ReportMonitoreoCliente;
 use App\Http\Controllers\ReportsController;
 use App\Http\Controllers\ReplicarMonitoreoController;
@@ -81,4 +82,4 @@ Route::get('/correo-invoice/notas-credito/{correlativo}', [NotasCreditoControlle
 Route::get('/correo-invoice/notas-debito/{correlativo}', [NotasDebitoController::class, 'generateMailInvoiceNotasDebito']);
 
 // Host New
-Route::get('/backup-resumen-auto', [BackupMonResumenController::class, 'Backup']);
+Route::post('/servicio/nodo/informarConeccion', [NodoController::class, 'informarConexion']);
