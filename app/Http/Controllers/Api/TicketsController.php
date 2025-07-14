@@ -19,80 +19,131 @@ use Illuminate\Http\Request;
 
 class TicketsController extends Controller
 {
+    // public function indexPagination(Request $request)
+    // {
+    //     // Obtener el ID del usuario autenticado
+    //     $idPersona = Auth::id();
+
+    //     // Iniciar la consulta base con el filtro por usuario autenticado
+    //     $query = Ticket::where(function ($q) use ($request, $idPersona) {
+    //         if ($request->filled('idUsuarioResponsable')) {
+    //             $q->where('idUsuarioResponsable', $request->input('idUsuarioResponsable'));
+    //         } else {
+    //             $q->where('idUsuarioResponsable', $idPersona);
+    //         }
+    //     })->orderBy('idTicket', 'desc');
+
+    //     // Agregar filtro adicional si se envía un número en la consulta
+    //     $numero = $request->query('numero');
+    //     if (!empty($numero)) {
+    //         $query->where('numero', $numero); // Buscar por valor exacto
+    //     }
+    //     $flgStatus = $request->query('flgStatus');
+    //     if ($request->filled('idCompaniaSolicitante')) {
+    //         $query->where('idCompaniaSolicitante', $request->input('idCompaniaSolicitante'));
+    //     }
+
+
+    //     if (!empty($flgStatus)) {
+    //         // Convertir a array si se pasa como una cadena separada por comas
+    //         $flgStatusArray = is_array($flgStatus) ? $flgStatus : explode(',', $flgStatus);
+
+    //         $query->whereIn('flgStatus', $flgStatusArray);
+    //     }
+
+
+
+
+    //     // Obtener la paginación
+    //     $response = $query->paginate(20);
+
+    //     // Iterar sobre los tickets para enriquecer los datos
+    //     foreach ($response as $ticket) {
+    //         // Obtener el responsable
+    //         $responsable = PersonaHelper::getResponsableById($ticket->idUsuarioResponsable);
+    //         if ($responsable) {
+    //             $ticket->responsable = $responsable->nombre . ' ' . $responsable->apellidos;
+    //         } else {
+    //             $ticket->responsable = 'No disponible';
+    //         }
+
+    //         // Obtener el solicitante
+    //         $solicitante = PersonaHelper::getSolicitanteById($ticket->idUsuarioSolicitante, $ticket->idUsuarioSolicitanteNodo);
+
+    //         if ($solicitante) {
+    //             $ticket->solicitante = $solicitante->nombre . ' ' . $solicitante->apellidos;
+    //         } else {
+    //             $ticket->solicitante = 'No disponible';
+    //         }
+
+    //         // Obtener la compañía solicitante
+    //         $idCompaniaSolicitante = $ticket->idCompaniaSolicitante; // O cualquier otra lógica para asignar el valor
+    //         $CompaniaSolicitante = companiaHelper::getCompaniaById($ticket->idTicketNodo, $idCompaniaSolicitante);
+    //         if ($CompaniaSolicitante) {
+    //             $ticket->CompaniaSolicitante = $CompaniaSolicitante->nombreCorto;
+    //         } else {
+    //             $ticket->CompaniaSolicitante = 'No disponible';
+    //         }
+
+    //         // Obtener la oficina de la compañía solicitante
+    //         $CompaniaSolicitanteOficina = oficinaHelper::getoficinaById($ticket->idOficina);
+    //         $ticket->CompaniaSolicitanteOficina = $CompaniaSolicitanteOficina ? $CompaniaSolicitanteOficina->nombre : 'No disponible';
+    //     }
+
+    //     // Devolver la respuesta en formato JSON con los tickets modificados
+    //     return response()->json($response);
+    // }
+
     public function indexPagination(Request $request)
     {
-        // Obtener el ID del usuario autenticado
-        $idPersona = Auth::id();
+        // Iniciar la consulta base sin filtrar por usuario autenticado
+        $query = Ticket::query()->orderBy('idTicket', 'desc');
 
-        // Iniciar la consulta base con el filtro por usuario autenticado
-        $query = Ticket::where(function ($q) use ($request, $idPersona) {
-            if ($request->filled('idUsuarioResponsable')) {
-                $q->where('idUsuarioResponsable', $request->input('idUsuarioResponsable'));
-            } else {
-                $q->where('idUsuarioResponsable', $idPersona);
-            }
-        })->orderBy('idTicket', 'desc');
+        // Filtro por idUsuarioResponsable si se proporciona en la request
+        if ($request->filled('idUsuarioResponsable')) {
+            $query->where('idUsuarioResponsable', $request->input('idUsuarioResponsable'));
+        }
 
         // Agregar filtro adicional si se envía un número en la consulta
         $numero = $request->query('numero');
         if (!empty($numero)) {
             $query->where('numero', $numero); // Buscar por valor exacto
         }
-        $flgStatus = $request->query('flgStatus');
+
+        // Filtro por compañía solicitante
         if ($request->filled('idCompaniaSolicitante')) {
             $query->where('idCompaniaSolicitante', $request->input('idCompaniaSolicitante'));
         }
 
-
+        // Filtro por estado
+        $flgStatus = $request->query('flgStatus');
         if (!empty($flgStatus)) {
-            // Convertir a array si se pasa como una cadena separada por comas
             $flgStatusArray = is_array($flgStatus) ? $flgStatus : explode(',', $flgStatus);
-
             $query->whereIn('flgStatus', $flgStatusArray);
         }
-
-
-
 
         // Obtener la paginación
         $response = $query->paginate(20);
 
-        // Iterar sobre los tickets para enriquecer los datos
+        // Enriquecer los datos
         foreach ($response as $ticket) {
-            // Obtener el responsable
             $responsable = PersonaHelper::getResponsableById($ticket->idUsuarioResponsable);
-            if ($responsable) {
-                $ticket->responsable = $responsable->nombre . ' ' . $responsable->apellidos;
-            } else {
-                $ticket->responsable = 'No disponible';
-            }
+            $ticket->responsable = $responsable ? $responsable->nombre . ' ' . $responsable->apellidos : 'No disponible';
 
-            // Obtener el solicitante
             $solicitante = PersonaHelper::getSolicitanteById($ticket->idUsuarioSolicitante, $ticket->idUsuarioSolicitanteNodo);
+            $ticket->solicitante = $solicitante ? $solicitante->nombre . ' ' . $solicitante->apellidos : 'No disponible';
 
-            if ($solicitante) {
-                $ticket->solicitante = $solicitante->nombre . ' ' . $solicitante->apellidos;
-            } else {
-                $ticket->solicitante = 'No disponible';
-            }
-
-            // Obtener la compañía solicitante
-            $idCompaniaSolicitante = $ticket->idCompaniaSolicitante; // O cualquier otra lógica para asignar el valor
+            $idCompaniaSolicitante = $ticket->idCompaniaSolicitante;
             $CompaniaSolicitante = companiaHelper::getCompaniaById($ticket->idTicketNodo, $idCompaniaSolicitante);
-            if ($CompaniaSolicitante) {
-                $ticket->CompaniaSolicitante = $CompaniaSolicitante->nombreCorto;
-            } else {
-                $ticket->CompaniaSolicitante = 'No disponible';
-            }
+            $ticket->CompaniaSolicitante = $CompaniaSolicitante ? $CompaniaSolicitante->nombreCorto : 'No disponible';
 
-            // Obtener la oficina de la compañía solicitante
             $CompaniaSolicitanteOficina = oficinaHelper::getoficinaById($ticket->idOficina);
             $ticket->CompaniaSolicitanteOficina = $CompaniaSolicitanteOficina ? $CompaniaSolicitanteOficina->nombre : 'No disponible';
         }
 
-        // Devolver la respuesta en formato JSON con los tickets modificados
         return response()->json($response);
     }
+
 
 
     public function DetailTicket($numero)

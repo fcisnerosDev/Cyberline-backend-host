@@ -8,6 +8,7 @@ use App\Traits\ServiceFacturacionTrait;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use App\Models\Facturacion_Nuevo\NotasCredito;
+use App\Models\Facturacion_Nuevo\EstadoPago;
 use App\Models\Facturacion_Nuevo\Clients;
 use Luecano\NumeroALetras\NumeroALetras;
 // use Barryvdh\DomPDF\Facade\Pdf;
@@ -64,7 +65,15 @@ class NotasCreditoController extends Controller
         return response()->json($facturas);
     }
 
+    public function EstadoPagoAll()
+    {
+        $estados = EstadoPago::all(['id', 'nombre']);
 
+        return response()->json([
+            'success' => true,
+            'data' => $estados,
+        ]);
+    }
 
 
     // public function searchFactura(Request $request)
@@ -233,5 +242,20 @@ class NotasCreditoController extends Controller
     }
 
 
+    public function EnviarEstadoNC(Request $request)
+    {
+        $data = $request->all();
 
+        // Asegúrate de que el campo 'invoice' venga en el request
+        if (!isset($data['invoice'])) {
+            return response()->json(['error' => true, 'message' => 'Falta el ID de la factura (invoice)'], 422);
+        }
+
+        $invoiceId = $data['invoice'];
+        $endpoint = "api/invoices/{$invoiceId}/estado";
+
+        $respuesta = $this->consumirServicioFacturacion($endpoint, $data, 'PUT');
+
+        return response()->json($respuesta);
+    }
 }

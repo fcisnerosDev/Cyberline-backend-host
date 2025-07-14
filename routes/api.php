@@ -28,7 +28,7 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 Route::group(['middleware' => ['auth:sanctum']], function () {
     Route::controller(UserController::class)->group(function () {
         Route::get('/roles/getroles', 'getRoles')->name('roles.getroles');
-  Route::get('/users/pagination', 'indexPagination')->name('user.pagination');
+        Route::get('/users/pagination', 'indexPagination')->name('user.pagination');
         Route::group(['middleware' => ['role:Administrador']], function () {
             // Route::get('/users/pagination', 'indexPagination')->name('user.pagination');
             // Route::post('/user/register', 'StoreUser')->name('user.store');
@@ -83,9 +83,12 @@ Route::group(['middleware' => ['auth:sanctum']], function () {
 // Facturación Electronica
 Route::controller(NotasCreditoController::class)->group(function () {
     // Route::group(['middleware' => ['role:Administrador']], function () {
-        Route::get('/facturacion/notas-credito/pagination', 'indexPagination')->name('nc.pagination');
-        Route::get('/facturacion/search-factura/', 'searchFactura')->name('nc.search');
-        Route::post('/facturacion/nota-credito/enviar', 'enviarNotaCredito')->name('nc.post');
+    Route::get('/facturacion/notas-credito/pagination', 'indexPagination')->name('nc.pagination');
+    Route::get('/facturacion/search-factura/', 'searchFactura')->name('nc.search');
+    Route::post('/facturacion/nota-credito/enviar', 'enviarNotaCredito')->name('nc.post');
+    Route::get('/facturacion/nota-credito/estados', 'EstadoPagoAll')->name('nc.estados');
+    Route::put('/facturacion/nota-credito/enviar-estado', 'EnviarEstadoNC')->name('nc.estados');
+
 
 
     // });
@@ -93,9 +96,10 @@ Route::controller(NotasCreditoController::class)->group(function () {
 
 Route::controller(NotasDebitoController::class)->group(function () {
     // Route::group(['middleware' => ['role:Administrador']], function () {
-        Route::get('/facturacion/notas-debito/pagination', 'indexPagination')->name('nd.pagination');
-        Route::get('/facturacion/search-factura-debito/', 'searchFacturaNd')->name('nd.search');
-        Route::post('/facturacion/nota-debito/enviar', 'enviarNotaCredito')->name('nd.post');
+    Route::get('/facturacion/notas-debito/pagination', 'indexPagination')->name('nd.pagination');
+    Route::get('/facturacion/search-factura-debito/', 'searchFacturaNd')->name('nd.search');
+    Route::post('/facturacion/nota-debito/enviar', 'enviarNotaDebito')->name('nd.post');
+
 
 
     // });
