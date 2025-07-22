@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\DashboardController;
+use App\Http\Controllers\Api\Facturacion\Facturas\FacturasElectronicasController;
 use App\Http\Controllers\Api\Facturacion\NotasCredito\NotasCreditoController;
 use App\Http\Controllers\Api\Facturacion\NotasCredito\NotasDebitoController;
 use App\Http\Controllers\Api\ReportsController;
@@ -99,6 +100,23 @@ Route::controller(NotasDebitoController::class)->group(function () {
     Route::get('/facturacion/notas-debito/pagination', 'indexPagination')->name('nd.pagination');
     Route::get('/facturacion/search-factura-debito/', 'searchFacturaNd')->name('nd.search');
     Route::post('/facturacion/nota-debito/enviar', 'enviarNotaDebito')->name('nd.post');
+
+
+
+    // });
+});
+
+Route::controller(FacturasElectronicasController::class)->group(function () {
+    // Route::group(['middleware' => ['role:Administrador']], function () {
+    Route::get('/facturacion/facturas/pagination', 'indexPagination')->name('fe.pagination');
+    Route::get('/facturacion/factura/{id}/detraccion', 'GetDetraccion')->name('fe.GetDetraccion');
+    Route::get('/facturacion/factura/{id}/cuotas', 'GetCuotas')->name('fe.GetCuotas');
+    Route::get('/facturacion/lista-clientes', 'GetClientes')->name('fe.GetClientes');
+    Route::post('/facturacion/factura/enviar', 'enviarFactura')->name('enviarFactura.post');
+    // Route::get('/facturacion/search-factura/', 'searchFactura')->name('nc.search');
+    // Route::post('/facturacion/nota-credito/enviar', 'enviarNotaCredito')->name('nc.post');
+    // Route::get('/facturacion/nota-credito/estados', 'EstadoPagoAll')->name('nc.estados');
+    // Route::put('/facturacion/nota-credito/enviar-estado', 'EnviarEstadoNC')->name('nc.estados');
 
 
 

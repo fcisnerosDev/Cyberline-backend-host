@@ -2,6 +2,8 @@
 
 namespace App\Models\Facturacion_Nuevo;
 
+
+
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -44,5 +46,13 @@ class Invoice extends Model
     {
         return $this->hasMany(InvoiceDetail::class);
     }
-}
+    public function cuotas()
+    {
+        return $this->hasMany(InvoiceCuota::class);
+    }
 
+    public function detraccion()
+    {
+        return $this->hasOne(InvoiceDetraccion::class);
+    }
+}
