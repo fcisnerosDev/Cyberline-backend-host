@@ -7,8 +7,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class Compania extends Model
 {
-     protected $table = 'maeCompania';
-     protected $fillable = [
+    protected $table = 'maeCompania';
+    protected $fillable = [
         'idCompaniaNodo',
 
     ];
@@ -18,5 +18,11 @@ class Compania extends Model
     public function oficinas()
     {
         return $this->hasMany(Oficina::class, 'idCompania');
+    }
+
+    public function oficinaPrincipal()
+    {
+        return $this->hasOne(Oficina::class, 'idCompania', 'idCompania')
+            ->where('flgSedePrincipal', '1');
     }
 }

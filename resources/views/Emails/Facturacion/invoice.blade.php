@@ -83,6 +83,7 @@
 
             padding-inline-end: 34px;
         }
+
         .col-lg-90 {
             -webkit-box-flex: 0;
             -ms-flex: 0 0 50%;
@@ -574,7 +575,7 @@ color: #0000CC">
         <div class="row">
             <div class="col-lg-4">
                 <div class="qr-code">
-                    {!! $qrCode !!}
+                    <img src="{{ $qrCode }}" style="width: 90px;">
                 </div>
 
             </div>
