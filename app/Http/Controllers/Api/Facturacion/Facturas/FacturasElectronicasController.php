@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\Facturacion\Facturas;
 
+use App\Models\Facturacion_Nuevo\MetodosPago;
 use Illuminate\Http\Request;
 use App\Models\Compania;
 use App\Models\Facturacion_Nuevo\Facturas;
@@ -32,6 +33,16 @@ class FacturasElectronicasController extends Controller
         return response()->json([
             'success' => true,
             'data' => $estados,
+        ]);
+    }
+
+     public function MetodosPagoAll()
+    {
+        $MetodosPago = MetodosPago::all(['id', 'name']);
+
+        return response()->json([
+            'success' => true,
+            'data' => $MetodosPago,
         ]);
     }
 
@@ -94,13 +105,58 @@ class FacturasElectronicasController extends Controller
     // }
 
 
+    // public function indexPagination(Request $request)
+    // {
+    //     $query = Facturas::with('client', 'sunatResponse')
+    //         ->where('serie', 'F001');
+
+    //     if ($request->filled('num_doc_afectado')) {
+    //         $query->where('num_doc_afectado', 'like', "%{$request->num_doc_afectado}%");
+    //     }
+
+    //     $response = $query->orderBy('id', 'desc')->paginate(20);
+
+    //     $response->setCollection($response->getCollection()->transform(function ($factura) {
+    //         $factura->doc_afectado = $factura->tipo_doc_afectado === "01" ? "Factura" : $factura->tipo_doc_afectado;
+
+    //         $factura->Estado_Sunat = $factura->sunatResponse
+    //             ? ($factura->sunatResponse->success == 1 ? "Aceptado en Sunat" : "Rechazado en Sunat")
+    //             : "No enviado a Sunat";
+
+    //         return $factura;
+    //     }));
+
+    //     return response()->json($response);
+    // }
     public function indexPagination(Request $request)
     {
         $query = Facturas::with('client', 'sunatResponse')
-            ->where('serie', 'F001');
+            ->where('serie', 'F001'); // valor por defecto
 
-        if ($request->filled('num_doc_afectado')) {
-            $query->where('num_doc_afectado', 'like', "%{$request->num_doc_afectado}%");
+        // Filtro por estado_pago_id
+        if ($request->filled('estado_pago_id')) {
+            $query->where('estado_pago_id', $request->estado_pago_id);
+        }
+
+        // Filtro por serie-correlativo (ej: F001-00004807)
+        if ($request->filled('numeroFactura')) {
+            $parts = explode('-', $request->numeroFactura);
+            if (count($parts) === 2) {
+                [$serie, $correlativo] = $parts;
+                $query->where('serie', $serie)->where('correlativo', $correlativo);
+            }
+        }
+
+        // Filtro por RUC del cliente
+        if ($request->filled('ruc')) {
+            $query->whereHas('client', function ($q) use ($request) {
+                $q->where('num_doc', 'like', "%{$request->ruc}%");
+            });
+        }
+
+        // Filtro por fecha de emisión (solo la parte de la fecha, sin hora)
+        if ($request->filled('fecha')) {
+            $query->whereDate('fecha_emision', $request->fecha);
         }
 
         $response = $query->orderBy('id', 'desc')->paginate(20);
@@ -109,7 +165,11 @@ class FacturasElectronicasController extends Controller
             $factura->doc_afectado = $factura->tipo_doc_afectado === "01" ? "Factura" : $factura->tipo_doc_afectado;
 
             $factura->Estado_Sunat = $factura->sunatResponse
-                ? ($factura->sunatResponse->success == 1 ? "Aceptado en Sunat" : "Rechazado en Sunat")
+                ? ($factura->sunatResponse->success == 1
+                    ? "Aceptado en Sunat"
+                    : ($factura->sunatResponse->success == 3
+                        ? "Factura Anulada"
+                        : "Rechazado en Sunat"))
                 : "No enviado a Sunat";
 
             return $factura;
@@ -117,6 +177,8 @@ class FacturasElectronicasController extends Controller
 
         return response()->json($response);
     }
+
+
 
     public function getDetraccion($invoice_id)
     {
