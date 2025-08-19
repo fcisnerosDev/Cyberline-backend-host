@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Api\Facturacion\Facturas;
 
 use App\Models\Facturacion_Nuevo\MetodosPago;
+use App\Models\Facturacion_Nuevo\services;
+use App\Models\Facturacion_Nuevo\ServiceType;
 use Illuminate\Http\Request;
 use App\Models\Compania;
 use App\Models\Facturacion_Nuevo\Facturas;
@@ -36,13 +38,32 @@ class FacturasElectronicasController extends Controller
         ]);
     }
 
-     public function MetodosPagoAll()
+    public function MetodosPagoAll()
     {
         $MetodosPago = MetodosPago::all(['id', 'name']);
 
         return response()->json([
             'success' => true,
             'data' => $MetodosPago,
+        ]);
+    }
+    public function ServiciosTipoAll()
+    {
+        $ServicesType = ServiceType::all(['id', 'name','code']);
+
+        return response()->json([
+            'success' => true,
+            'data' => $ServicesType,
+        ]);
+    }
+
+     public function ServiciosAll()
+    {
+        $Services = services::all(['id', 'name','service_type_id']);
+
+        return response()->json([
+            'success' => true,
+            'data' => $Services,
         ]);
     }
 
