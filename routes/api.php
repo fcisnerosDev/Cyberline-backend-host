@@ -114,7 +114,10 @@ Route::controller(FacturasElectronicasController::class)->group(function () {
     Route::get('/facturacion/factura/{id}/cuotas', 'GetCuotas')->name('fe.GetCuotas');
     Route::get('/facturacion/lista-clientes', 'GetClientes')->name('fe.GetClientes');
     Route::post('/facturacion/factura/enviar', 'enviarFactura')->name('enviarFactura.post');
-      Route::get('/facturacion/metodos-pago', 'MetodosPagoAll')->name('FE.metodos');
+    Route::get('/facturacion/metodos-pago', 'MetodosPagoAll')->name('FE.metodos');
+    Route::get('/facturacion/tipos-servicios', 'ServiciosTipoAll')->name('FE.ServiciosTipoAll');
+    Route::get('/facturacion/servicios', 'ServiciosAll')->name('FE.ServiciosAll');
+
     // Route::get('/facturacion/search-factura/', 'searchFactura')->name('nc.search');
     // Route::post('/facturacion/nota-credito/enviar', 'enviarNotaCredito')->name('nc.post');
     // Route::get('/facturacion/nota-credito/estados', 'EstadoPagoAll')->name('nc.estados');
