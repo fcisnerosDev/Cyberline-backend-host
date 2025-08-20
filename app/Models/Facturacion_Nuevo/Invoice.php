@@ -55,4 +55,8 @@ class Invoice extends Model
     {
         return $this->hasOne(InvoiceDetraccion::class);
     }
+     public function sunatResponse()
+    {
+        return $this->hasOne(SunatResponse::class, 'invoice_id', 'id');
+    }
 }

@@ -7,7 +7,7 @@ use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithStyles;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
-class FacturaExport implements FromCollection, WithHeadings, WithStyles
+class FacturaExportDemo implements FromCollection, WithHeadings, WithStyles
 {
     private $facturas;
 

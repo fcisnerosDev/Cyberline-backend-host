@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\Facturacion\Facturas;
 
+use App\Exports\FacturasExport;
 use App\Models\Facturacion_Nuevo\MetodosPago;
 use App\Models\Facturacion_Nuevo\services;
 use App\Models\Facturacion_Nuevo\ServiceType;
@@ -20,6 +21,8 @@ use App\Models\Facturacion_Nuevo\Clients;
 use Luecano\NumeroALetras\NumeroALetras;
 // use Barryvdh\DomPDF\Facade\Pdf;
 use Barryvdh\DomPDF\Facade as PDF;
+use Maatwebsite\Excel\Excel;
+use Maatwebsite\Excel\Facades\Excel as FacadesExcel;
 
 class FacturasElectronicasController extends Controller
 
@@ -49,7 +52,7 @@ class FacturasElectronicasController extends Controller
     }
     public function ServiciosTipoAll()
     {
-        $ServicesType = ServiceType::all(['id', 'name','code']);
+        $ServicesType = ServiceType::all(['id', 'name', 'code']);
 
         return response()->json([
             'success' => true,
@@ -57,9 +60,9 @@ class FacturasElectronicasController extends Controller
         ]);
     }
 
-     public function ServiciosAll()
+    public function ServiciosAll()
     {
-        $Services = services::all(['id', 'name','service_type_id']);
+        $Services = services::all(['id', 'name', 'service_type_id']);
 
         return response()->json([
             'success' => true,
@@ -175,8 +178,11 @@ class FacturasElectronicasController extends Controller
             });
         }
 
-        // Filtro por fecha de emisión (solo la parte de la fecha, sin hora)
-        if ($request->filled('fecha')) {
+        // Filtro por rango de fecha usando whereDate (sin DB::raw)
+        if ($request->filled('start_date') && $request->filled('end_date')) {
+            $query->whereDate('fecha_emision', '>=', $request->start_date)
+                ->whereDate('fecha_emision', '<=', $request->end_date);
+        } elseif ($request->filled('fecha')) {
             $query->whereDate('fecha_emision', $request->fecha);
         }
 
@@ -198,6 +204,7 @@ class FacturasElectronicasController extends Controller
 
         return response()->json($response);
     }
+
 
 
 
@@ -338,5 +345,17 @@ class FacturasElectronicasController extends Controller
             'success' => true,
             'clientes' => $clientes
         ]);
+    }
+
+    public function exportFacturas(Request $request)
+    {
+        $fechaHora = now()->format('d-m-Y H-i');
+        $startDate = $request->query('start_date'); // o $request->input('start_date')
+        $endDate   = $request->query('end_date');
+
+        return \Maatwebsite\Excel\Facades\Excel::download(
+            new FacturasExport($startDate, $endDate),
+            "reporte-facturas-{$fechaHora}.xlsx"
+        );
     }
 }
