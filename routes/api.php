@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\Facturacion\Facturas\FacturasElectronicasController;
 use App\Http\Controllers\Api\Facturacion\NotasCredito\NotasCreditoController;
 use App\Http\Controllers\Api\Facturacion\NotasCredito\NotasDebitoController;
+use App\Http\Controllers\Api\Monitoreo\MonitoreoController;
 use App\Http\Controllers\Api\ReportsController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\TicketsController;
@@ -129,7 +130,11 @@ Route::controller(FacturasElectronicasController::class)->group(function () {
     // });
 });
 
-
+Route::controller(MonitoreoController::class)->group(function () {
+    Route::get('/monitoreo-servicios', 'getListMonitoreoServicios')->name('getListMonitoreoServicios');
+     Route::get('/monitoreo-conectividad', 'getListMonitoreoConectividad')->name('getListMonitoreoConectividad');
+     Route::get('/lista-equipos', 'GetEquipos')->name('getEquipos');
+});
 
 // Grupo de rutas de autenticación
 Route::group(['prefix' => 'auth'], function () {

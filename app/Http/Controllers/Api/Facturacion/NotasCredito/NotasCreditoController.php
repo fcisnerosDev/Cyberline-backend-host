@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\Facturacion\NotasCredito;
 
+use App\Models\Facturacion_Nuevo\Correlativo;
 use SimpleSoftwareIO\QrCode\Facades\QrCode;
 use App\Models\mov_fact_x_cobr_cab;
 use App\Traits\ServiceFacturacionTrait;
@@ -10,14 +11,64 @@ use App\Http\Controllers\Controller;
 use App\Models\Facturacion_Nuevo\NotasCredito;
 use App\Models\Facturacion_Nuevo\EstadoPago;
 use App\Models\Facturacion_Nuevo\Clients;
+use App\Models\Facturacion_Nuevo\Invoice;
 use Luecano\NumeroALetras\NumeroALetras;
 // use Barryvdh\DomPDF\Facade\Pdf;
 use Barryvdh\DomPDF\Facade as PDF;
+use Svg\Tag\Rect;
 
 class NotasCreditoController extends Controller
 
 {
     use ServiceFacturacionTrait;
+
+    // public function searchFactura(Request $request)
+    // {
+    //     $request->validate([
+    //         'nro_factura' => 'required|string|max:255',
+    //     ]);
+
+    //     $facturas = mov_fact_x_cobr_cab::where('nro_factura', 'LIKE', "%{$request->nro_factura}%")
+    //         ->with(['detalles', 'condicionPago']) // No se usa 'oficina' ni 'compania'
+    //         ->get()
+    //         ->map(function ($factura) {
+    //             $factura->cod_compania = (int) $factura->cod_compania;
+    //             $factura->tipo_DE_moneda = $factura->cod_moneda == 2 ? 'USD' : ($factura->cod_moneda == 1 ? 'PEN' : 'DESCONOCIDO');
+    //             $factura->tipoMoneda = $factura->tipo_DE_moneda;
+
+    //             $factura->num_venta_noexo_igv = number_format($factura->num_venta_noexo_igv, 2, '.', '');
+    //             $factura->num_subtotal = number_format($factura->num_subtotal, 2, '.', '');
+    //             $factura->num_igv = number_format($factura->num_igv, 2, '.', '');
+    //             $factura->num_total = number_format($factura->num_total, 2, '.', '');
+
+    //             if ($factura->detalles) {
+    //                 $contador = 1;
+    //                 $factura->detalles = $factura->detalles->map(function ($detalle) use (&$contador) {
+    //                     $detalle->dsc_monto = number_format($detalle->dsc_monto, 2, '.', '');
+    //                     $detalle->codProducto = 'P' . str_pad($contador, 3, '0', STR_PAD_LEFT);
+    //                     $detalle->unidad = 'NIU';
+    //                     $contador++;
+    //                     return $detalle;
+    //                 });
+    //             }
+
+    //             $ultimaNotaCredito = NotasCredito::where('serie', 'FC01')->orderBy('id', 'desc')->first();
+    //             $numeroCorrelativo = (int) preg_replace('/[^0-9]/', '', $ultimaNotaCredito->correlativo ?? '000000');
+    //             $factura->proximo_correlativo_nc = '00' . str_pad($numeroCorrelativo + 1, 6, '0', STR_PAD_LEFT);
+
+    //             $factura->dsc_cond_pag = $factura->condicionPago?->dsc_cond_pag ?? 'DESCONOCIDO';
+
+    //             // Cargar desde métodos personalizados
+    //             $factura->compania = $factura->compania();
+    //             $factura->oficina = $factura->oficina();
+
+    //             return $factura;
+    //         });
+
+    //     return response()->json($facturas);
+    // }
+
+
 
     public function searchFactura(Request $request)
     {
@@ -25,45 +76,45 @@ class NotasCreditoController extends Controller
             'nro_factura' => 'required|string|max:255',
         ]);
 
-        $facturas = mov_fact_x_cobr_cab::where('nro_factura', 'LIKE', "%{$request->nro_factura}%")
-            ->with(['detalles', 'condicionPago']) // No se usa 'oficina' ni 'compania'
-            ->get()
-            ->map(function ($factura) {
-                $factura->cod_compania = (int) $factura->cod_compania;
-                $factura->tipo_DE_moneda = $factura->cod_moneda == 2 ? 'USD' : ($factura->cod_moneda == 1 ? 'PEN' : 'DESCONOCIDO');
-                $factura->tipoMoneda = $factura->tipo_DE_moneda;
+        // El usuario manda algo como "F001-00004846"
+        [$serie, $correlativo] = explode('-', $request->nro_factura);
 
-                $factura->num_venta_noexo_igv = number_format($factura->num_venta_noexo_igv, 2, '.', '');
-                $factura->num_subtotal = number_format($factura->num_subtotal, 2, '.', '');
-                $factura->num_igv = number_format($factura->num_igv, 2, '.', '');
-                $factura->num_total = number_format($factura->num_total, 2, '.', '');
+        $invoice = Invoice::with([
+            'client:id,num_doc,rzn_social,direccion',
+            'details'
+        ])
+            ->where('serie', $serie)
+            ->where('correlativo', $correlativo)
+            ->first();
 
-                if ($factura->detalles) {
-                    $contador = 1;
-                    $factura->detalles = $factura->detalles->map(function ($detalle) use (&$contador) {
-                        $detalle->dsc_monto = number_format($detalle->dsc_monto, 2, '.', '');
-                        $detalle->codProducto = 'P' . str_pad($contador, 3, '0', STR_PAD_LEFT);
-                        $detalle->unidad = 'NIU';
-                        $contador++;
-                        return $detalle;
-                    });
-                }
+        if (!$invoice) {
+            return response()->json(['message' => 'Factura no encontrada'], 404);
+        }
 
-                $ultimaNotaCredito = NotasCredito::where('serie', 'FC01')->orderBy('id', 'desc')->first();
-                $numeroCorrelativo = (int) preg_replace('/[^0-9]/', '', $ultimaNotaCredito->correlativo ?? '000000');
-                $factura->proximo_correlativo_nc = '00' . str_pad($numeroCorrelativo + 1, 6, '0', STR_PAD_LEFT);
+        // Campo calculado num_doc_afectado
+        $invoice->num_doc_afectado = $invoice->serie . '-' . $invoice->correlativo;
 
-                $factura->dsc_cond_pag = $factura->condicionPago?->dsc_cond_pag ?? 'DESCONOCIDO';
+        // Calcular monto_igv sumando el igv de los detalles
+        $montoIgv = $invoice->details->sum(function ($detail) {
+            return (float) $detail->igv;
+        });
+        $invoice->monto_igv = round($montoIgv, 2); // como número (no string)
 
-                // Cargar desde métodos personalizados
-                $factura->compania = $factura->compania();
-                $factura->oficina = $factura->oficina();
+        // Obtener el último correlativo de la serie FC01
+        $ultimoCorrelativo = Correlativo::where('serie', 'FC01')
+            ->orderByDesc('ultimo_correlativo')
+            ->value('ultimo_correlativo');
 
-                return $factura;
-            });
+        // Si existe, incrementar en 1, si no existe, empezar en 1
+        $invoice->ultimo_correlativo = $ultimoCorrelativo ? ((int) $ultimoCorrelativo + 1) : 1;
 
-        return response()->json($facturas);
+        return response()->json($invoice);
     }
+
+
+
+
+
 
     public function EstadoPagoAll()
     {
