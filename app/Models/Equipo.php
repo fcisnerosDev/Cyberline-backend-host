@@ -14,4 +14,12 @@ class Equipo extends Model
         'idEquipo',
 
     ];
+    public function oficina()
+    {
+        return $this->belongsTo(Oficina::class, 'idOficina', 'idOficina');
+    }
+    public function ips()
+    {
+        return $this->hasMany(Ip::class, 'idEquipo', 'idEquipo');
+    }
 }

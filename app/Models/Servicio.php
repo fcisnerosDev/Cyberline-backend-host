@@ -37,4 +37,8 @@ class Servicio extends Model
         'fechaSyncPadre',
         'temporal'
     ];
+    public function maeMaestro()
+    {
+        return $this->belongsTo(Maestro::class, 'idTipoServicio', 'idMaestro');
+    }
 }
