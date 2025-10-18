@@ -41,4 +41,5 @@ class Servicio extends Model
     {
         return $this->belongsTo(Maestro::class, 'idTipoServicio', 'idMaestro');
     }
+    
 }

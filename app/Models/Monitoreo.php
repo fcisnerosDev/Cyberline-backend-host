@@ -80,17 +80,21 @@ class Monitoreo extends Model
     {
         return $this->belongsTo(SysNodo::class, 'idNodoPerspectiva', 'idNodo'); // 'idNodo' debe existir en sysNodo
     }
-public function Ip()
+    public function Ip()
     {
         return $this->belongsTo(Ip::class, 'idEquipo', 'idEquipo');
     }
-      public function oficina()
+    public function oficina()
     {
         return $this->belongsTo(Oficina::class, 'idOficina', 'id');
     }
 
-   public function servicio()
+    public function servicio()
     {
         return $this->belongsTo(Servicio::class, 'idServicio', 'idServicio');
+    }
+    public function frecuencia()
+    {
+        return $this->belongsTo(Frecuencia::class, 'idFrecuencia', 'idFrecuencia');
     }
 }

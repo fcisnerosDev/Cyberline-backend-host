@@ -62,4 +62,9 @@ class SysNodo extends Model
         $resultado = DB::select('CALL sp_getSysNodo()');
         return (array) $resultado[0];
     }
+
+     public function monitoreos()
+    {
+        return $this->hasMany(Monitoreo::class, 'idNodoPerspectiva', 'idNodo');
+    }
 }

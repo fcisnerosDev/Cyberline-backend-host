@@ -71,9 +71,15 @@ Route::group(['middleware' => ['auth:sanctum']], function () {
         Route::get('/verificacion-conexion-nodos', 'verificarConexion')->name('verificarConexion.index');
         Route::get('/verificacion-conexion-monitoreos', 'getVerificacionMonitoreo')->name('getVerificacionMonitoreo.index');
         Route::get('/monitoreo-dashboard', 'getListMonitoreo')->name('getListMonitoreo.index');
-        Route::get('/monitoreo-revision', 'getListMonitoreoRevision')->name('getListMonitoreoRevision.index');
+        // Route::get('/monitoreo-revision', 'getListMonitoreoRevision')->name('getListMonitoreoRevision.index');
         Route::get('/monitoreo-revision-correo', 'getListMonitoreoRevisionCorreo')->name('getListMonitoreoRevisionCorreo.index');
-
+        // Dash
+        Route::get('/monitoreo-caidos', 'getListMonitoreoCaidos')->name('getListMonitoreoCaidos.index');
+        Route::get('/verificacion-nodos', 'verificarNodo')->name('verificarNodo.index');
+        Route::get('/monitoreo-revision', 'getListMonitoreoRevision')->name('getListMonitoreoRevision.index');
+        Route::put('/mover-revision/{idNodoPerspectiva}/{idMonitoreo}', 'MoverRevision')->name('MoverRevision.put');
+        Route::put('/quitar-revision/{idNodoPerspectiva}/{idMonitoreo}', 'QuitarRevision')->name('QuitarRevision.put');
+        Route::put('/mover-solucionado/{idNodoPerspectiva}/{idMonitoreo}', 'MonitoreoSolucionado')->name('MonitoreoSolucionado.put');
         // Route::group(['middleware' => ['role:Administrador']], function () {
         //     Route::get('/reports/pagination', 'indexPagination')->name('reports.pagination');
         //     // Route::get('/tickets/detail/{numero}', 'DetailTicket')->name('tickets.detail');
@@ -131,9 +137,15 @@ Route::controller(FacturasElectronicasController::class)->group(function () {
 });
 
 Route::controller(MonitoreoController::class)->group(function () {
+    // Modulo detalle Monitoreo
     Route::get('/monitoreo-servicios', 'getListMonitoreoServicios')->name('getListMonitoreoServicios');
-     Route::get('/monitoreo-conectividad', 'getListMonitoreoConectividad')->name('getListMonitoreoConectividad');
-     Route::get('/lista-equipos', 'GetEquipos')->name('getEquipos');
+    Route::get('/monitoreo-conectividad', 'getListMonitoreoConectividad')->name('getListMonitoreoConectividad');
+    Route::get('/lista-equipos', 'GetEquipos')->name('getEquipos');
+    Route::get('/monitoreo-log', 'MonitoreoLog')->name('MonitoreoLog');
+    Route::get('/monitoreo-resumen', 'MonitoreoResumen')->name('MonitoreoResumen');
+    // Modulo Equipos
+    Route::get('/equipos-compania', 'GetEquiposCompania')->name('GetEquiposCompania');
+    Route::get('/equipos-oficina', 'GetOficinasCompania')->name('GetOficinasCompania');
 });
 
 // Grupo de rutas de autenticación
