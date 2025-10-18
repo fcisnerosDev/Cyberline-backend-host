@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Helpers\EstadoHelper;
 use Illuminate\Support\Facades\Auth;
 use App\Helpers\PersonaHelper;
 use App\Helpers\companiaHelper;
@@ -96,18 +97,29 @@ class TicketsController extends Controller
 
     public function indexPagination(Request $request)
     {
-        // Iniciar la consulta base sin filtrar por usuario autenticado
+        // Obtener usuario autenticado
+        $user = auth()->user();
+        $idPersona = $user->idPersona ?? $request->user()->idPersona ?? null;
+        $idPersonaNodo = $user->idPersonaNodo ?? $request->user()->idPersonaNodo ?? null;
+
+        // Consulta base
         $query = Ticket::query()->orderBy('idTicket', 'desc');
 
-        // Filtro por idUsuarioResponsable si se proporciona en la request
+        // Si se envía un idUsuarioResponsable, usarlo como filtro
         if ($request->filled('idUsuarioResponsable')) {
             $query->where('idUsuarioResponsable', $request->input('idUsuarioResponsable'));
         }
+        // Si no se envía, filtrar por el usuario autenticado
+        elseif ($idPersona && $idPersonaNodo) {
+            $query->where(function ($q) use ($idPersona, $idPersonaNodo) {
+                $q->where('idUsuarioResponsable', $idPersona)
+                    ->where('idUsuarioResponsableNodo', $idPersonaNodo);
+            });
+        }
 
-        // Agregar filtro adicional si se envía un número en la consulta
-        $numero = $request->query('numero');
-        if (!empty($numero)) {
-            $query->where('numero', $numero); // Buscar por valor exacto
+        // Filtro por número exacto
+        if ($numero = $request->query('numero')) {
+            $query->where('numero', $numero);
         }
 
         // Filtro por compañía solicitante
@@ -116,16 +128,15 @@ class TicketsController extends Controller
         }
 
         // Filtro por estado
-        $flgStatus = $request->query('flgStatus');
-        if (!empty($flgStatus)) {
+        if ($flgStatus = $request->query('flgStatus')) {
             $flgStatusArray = is_array($flgStatus) ? $flgStatus : explode(',', $flgStatus);
             $query->whereIn('flgStatus', $flgStatusArray);
         }
 
-        // Obtener la paginación
+        // Paginación
         $response = $query->paginate(20);
 
-        // Enriquecer los datos
+        // Enriquecer datos
         foreach ($response as $ticket) {
             $responsable = PersonaHelper::getResponsableById($ticket->idUsuarioResponsable);
             $ticket->responsable = $responsable ? $responsable->nombre . ' ' . $responsable->apellidos : 'No disponible';
@@ -133,16 +144,19 @@ class TicketsController extends Controller
             $solicitante = PersonaHelper::getSolicitanteById($ticket->idUsuarioSolicitante, $ticket->idUsuarioSolicitanteNodo);
             $ticket->solicitante = $solicitante ? $solicitante->nombre . ' ' . $solicitante->apellidos : 'No disponible';
 
-            $idCompaniaSolicitante = $ticket->idCompaniaSolicitante;
-            $CompaniaSolicitante = companiaHelper::getCompaniaById($ticket->idTicketNodo, $idCompaniaSolicitante);
-            $ticket->CompaniaSolicitante = $CompaniaSolicitante ? $CompaniaSolicitante->nombreCorto : 'No disponible';
+            $compania = companiaHelper::getCompaniaById($ticket->idTicketNodo, $ticket->idCompaniaSolicitante);
+            $ticket->CompaniaSolicitante = $compania ? $compania->nombreCorto : 'No disponible';
 
-            $CompaniaSolicitanteOficina = oficinaHelper::getoficinaById($ticket->idOficina);
-            $ticket->CompaniaSolicitanteOficina = $CompaniaSolicitanteOficina ? $CompaniaSolicitanteOficina->nombre : 'No disponible';
+            $oficina = oficinaHelper::getoficinaById($ticket->idOficina);
+            $ticket->CompaniaSolicitanteOficina = $oficina ? $oficina->nombre : 'No disponible';
+
+            $ticket->estadoNombre = EstadoHelper::getNombreEstado($ticket->idEstado);
         }
 
         return response()->json($response);
     }
+
+
 
 
 
@@ -183,25 +197,26 @@ class TicketsController extends Controller
     public function DetailAtencionesTicket($idTicket)
     {
         try {
-            // Obtener las atenciones del ticket con flgEstado = 1
+            // Atenciones activas ordenadas por fecha
             $query = cybAtencion::where('idTicket', $idTicket)
-                ->where('flgEstado', "1");
+                ->where('flgEstado', '1')
+                ->orderBy('fechaCreacion', 'desc');
 
-            // Verificar si existen registros con las condiciones dadas
             if (!$query->exists()) {
                 return response()->json(['status' => false, 'message' => 'Atención no encontrada'], 404);
             }
 
-            // Aplicar paginación
+            // Paginación
             $atenciones = $query->paginate(10);
 
-            // Agregar el responsable a cada atención
+            // Agregar datos adicionales
             foreach ($atenciones as $atencion) {
                 $responsable = PersonaHelper::getResponsableById($atencion->idResponsable);
                 $atencion->responsable = $responsable ? $responsable->nombre . ' ' . $responsable->apellidos : 'No disponible';
+
+                $correoReporta = CorreoReportaHelper::getCorreosReportaByAtencionId($atencion->idAtencion);
+                $atencion->correoReporta = $correoReporta;
             }
-            $correoReporta = CorreoReportaHelper::getCorreosReportaByAtencionId($atencion->idAtencion);
-            $atencion->correoReporta = $correoReporta;
 
             return response()->json(['status' => true, 'data' => $atenciones]);
         } catch (\Exception $e) {
@@ -212,6 +227,7 @@ class TicketsController extends Controller
             ], 500);
         }
     }
+
 
 
 

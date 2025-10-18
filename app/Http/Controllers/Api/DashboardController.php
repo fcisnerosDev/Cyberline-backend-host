@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Helpers\MonitoreoHelper;
 use App\Models\MonitoreoCorreo;
 use Carbon\Carbon;
 use App\Http\Controllers\Controller;
@@ -194,24 +195,24 @@ class DashboardController extends Controller
     }
 
 
-    public function getListMonitoreoRevision(Request $request)
-    {
-        $MonitoreoRevision = Monitoreo::with('equipo')
-            ->where('flgEstado', "1")
-            ->where('flgRevision', "1")
-            ->where('flgStatus', "C")
-            ->whereHas('nodoPerspectiva', function ($query) {
-                $query->where('flgEstado', '1');
-            })
-            ->paginate(10);
+    // public function getListMonitoreoRevision(Request $request)
+    // {
+    //     $MonitoreoRevision = Monitoreo::with('equipo')
+    //         ->where('flgEstado', "1")
+    //         ->where('flgRevision', "1")
+    //         ->where('flgStatus', "C")
+    //         ->whereHas('nodoPerspectiva', function ($query) {
+    //             $query->where('flgEstado', '1');
+    //         })
+    //         ->paginate(10);
 
-        return response()->json($MonitoreoRevision);
-    }
+    //     return response()->json($MonitoreoRevision);
+    // }
 
 
     public function getListMonitoreoRevisionCorreo(Request $request)
     {
-        
+
         $MonitoreoCorreoRevision = MonitoreoCorreo::where('flgEstado', '1')
             ->where('flgRevision', '1')
             ->where('flgStatus', "C")
@@ -221,6 +222,374 @@ class DashboardController extends Controller
         return response()->json([
             'cantidad' => $cantidad,
             'data' => $MonitoreoCorreoRevision
+        ]);
+    }
+
+
+
+    // Dashboard
+
+
+    public function verificarNodo(Request $request)
+    {
+        if (!$request->isMethod('get')) {
+            return response()->json([
+                'estado' => false,
+                'mensaje' => 'Consulta no válida',
+                'datos' => null
+            ]);
+        }
+
+        try {
+            // Verificar conexión
+            $conexion = SysNodo::verificarConexion();
+            $conexion = $this->convertirTiempo($conexion);
+
+            // Verificar monitoreo
+            $monitoreo = SysNodo::getListaNodoEstadoMonitoreo('1', '0');
+
+            if (!$monitoreo || empty($monitoreo['data'])) {
+                $monitoreoProcesado = [];
+                $mensajeMonitoreo = 'No se encontraron registros';
+            } else {
+                $monitoreoProcesado = $this->convertirTiempoMonitoreo($monitoreo['data']);
+                $mensajeMonitoreo = $monitoreo['mensaje'] ?? 'Consulta de monitoreo exitosa';
+            }
+
+            return response()->json([
+                'estado' => true,
+                'mensaje' => 'Verificación de nodo completada',
+                'datos' => [
+                    'conexion' => [
+                        'mensaje' => 'Conexión verificada',
+                        'datos' => $conexion
+                    ],
+                    'monitoreo' => [
+                        'mensaje' => $mensajeMonitoreo,
+                        'datos' => $monitoreoProcesado
+                    ]
+                ]
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'estado' => false,
+                'mensaje' => 'Error durante la verificación: ' . $e->getMessage(),
+                'datos' => null
+            ]);
+        }
+    }
+
+    public function getListMonitoreoCaidos(Request $request)
+    {
+        $idNodoPerspectiva = $request->query('idNodoPerspectiva'); // opcional
+
+        $query = Monitoreo::with([
+            'equipo' => function ($q) {
+                $q->where('flgEstado', '1')->with([
+                    'oficina' => function ($q2) {
+                        $q2->where('flgEstado', '1');
+                    }
+                ]);
+            },
+            'Ip' => fn($q) => $q->where('flgEstado', '1'),
+            'servicio' => fn($q) => $q->where('flgEstado', '1')->with([
+                'maeMaestro' => fn($q2) => $q2->where('flgEstado', '1')
+            ]),
+            'frecuencia' => fn($q) => $q->where('flgEstado', '1'),
+
+            'nodoPerspectiva' => fn($q) => $q->where('flgEstado', '1'),
+        ])
+            ->where('flgEstado', '1')
+            ->where('flgRevision', '0')
+            ->where('idMonitoreoNodo', 'CYB')
+            ->where(function ($q) {
+                $q->whereIn('flgStatus', ['C']) // caídos
+                    ->orWhere('flgCondicionSolucionado', '1'); // o solucionados
+            })
+            ->whereHas('nodoPerspectiva', fn($q) => $q->where('flgEstado', '1'))
+            ->whereHas('equipo', fn($q) => $q->where('flgEstado', '1'))
+            ->whereHas('equipo.oficina', fn($q) => $q->where('flgEstado', '1'))
+            ->whereHas('Ip', fn($q) => $q->where('flgEstado', '1'))
+            ->whereHas('servicio', fn($q) => $q->where('flgEstado', '1'));
+
+        // Filtrar por idNodoPerspectiva si se pasa
+        if (!empty($idNodoPerspectiva)) {
+            $query->where('idNodoPerspectiva', $idNodoPerspectiva);
+        }
+
+        $monitoreos = $query->get();
+        $resultado = [];
+
+        foreach ($monitoreos as $monitoreo) {
+            if (isset($monitoreo->flgOcultarMonitoreo) && $monitoreo->flgOcultarMonitoreo === '1') {
+                continue;
+            }
+            $equipo = $monitoreo->equipo ?? null;
+            $oficina = $equipo->oficina ?? null;
+            if (!$oficina || !$equipo) continue;
+
+            // Ignorar equipos inactivos
+            if ($equipo->flgEstado !== '1') continue;
+
+            // Validar idEquipoPerspectiva si existe
+            if (!empty($equipo->idEquipoPerspectiva) && $equipo->idEquipoPerspectiva !== $monitoreo->idNodoPerspectiva) {
+                continue;
+            }
+
+            $idOficinaPerspectiva = $oficina->idOficinaPerspectiva ?? null;
+
+            //  Solo ignorar oficina si su perspectiva existe y NO coincide ni con el monitoreo ni con su propio nodo
+            if (
+                $idOficinaPerspectiva
+                && $idOficinaPerspectiva !== $monitoreo->idNodoPerspectiva
+                && $idOficinaPerspectiva !== $oficina->idOficinaNodo
+            ) {
+                continue;
+            }
+
+            $keyOficina = $oficina->idOficina . ($oficina->idOficinaNodo ?? '');
+            $keyEquipo = $monitoreo->idEquipo;
+
+            if (!isset($resultado[$keyOficina])) {
+                $resultado[$keyOficina] = [
+                    'idOficina' => $oficina->idOficina,
+                    'idOficinaNodo' => $oficina->idOficinaNodo ?? null,
+                    'idOficinaPerspectiva' => $idOficinaPerspectiva,
+                    'nombre' => $oficina->nombre ?? '',
+                    'equipos' => [],
+                ];
+            }
+
+            if (!isset($resultado[$keyOficina]['equipos'][$keyEquipo])) {
+                $resultado[$keyOficina]['equipos'][$keyEquipo] = [
+                    'idEquipo' => $equipo->idEquipo,
+                    'descripcion' => $equipo->descripcion ?? '',
+                    'monitoreos' => [],
+                ];
+            }
+
+            $tiempoTranscurrido = Carbon::parse($monitoreo->fechaUltimaVerificacion)->diff(Carbon::now());
+            $tiempoFormateado = sprintf(
+                '%02d:%02d:%02d',
+                $tiempoTranscurrido->days * 24 + $tiempoTranscurrido->h,
+                $tiempoTranscurrido->i,
+                $tiempoTranscurrido->s
+            );
+            $color = MonitoreoHelper::colorTiempoTranscurrido($monitoreo->fechaUltimaVerificacion);
+            if ($monitoreo->flgCondicionSolucionado === '1' && $monitoreo->flgStatus === 'O') {
+                $color = '#2f8c39';
+            }
+
+            $resultado[$keyOficina]['equipos'][$keyEquipo]['monitoreos'][] = [
+                'idMonitoreo' => $monitoreo->idMonitoreo,
+                'idMonitoreoNodo' => $monitoreo->idMonitoreoNodo,
+                'idNodoPerspectiva' => $monitoreo->idNodoPerspectiva,
+                'dscMonitoreo' => $monitoreo->dscMonitoreo,
+                'servicio' => $monitoreo->servicio->maeMaestro->nombre ?? $monitoreo->servicio->nombre ?? '',
+                'equipo' => $monitoreo->equipo->descripcion ?? '',
+                'flgStatus' => $monitoreo->flgStatus,
+                'ip' => $monitoreo->Ip->ip ?? '',
+                'frecuencia' => $monitoreo->frecuencia->dscFrecuencia ?? '-',
+                'fechaUltimaVerificacion' => $monitoreo->fechaUltimaVerificacion,
+                'tiempoTranscurrido' => $tiempoFormateado,
+                'color' => $color
+            ];
+        }
+
+        foreach ($resultado as &$oficina) {
+            $oficina['equipos'] = array_values($oficina['equipos']);
+        }
+
+        return response()->json([
+            'estado' => true,
+            'mensaje' => 'Monitoreos caídos obtenidos correctamente',
+            'data' => array_values($resultado),
+        ]);
+    }
+
+
+    public function getListMonitoreoRevision(Request $request)
+    {
+        $idNodoPerspectiva = $request->query('idNodoPerspectiva'); // opcional
+
+        $query = Monitoreo::with([
+            'equipo' => function ($q) {
+                $q->where('flgEstado', '1')->with([
+                    'oficina' => function ($q2) {
+                        $q2->where('flgEstado', '1');
+                    }
+                ]);
+            },
+            'Ip' => fn($q) => $q->where('flgEstado', '1'),
+            'servicio' => fn($q) => $q->where('flgEstado', '1')->with([
+                'maeMaestro' => fn($q2) => $q2->where('flgEstado', '1')
+            ]),
+            'frecuencia' => fn($q) => $q->where('flgEstado', '1'),
+            'nodoPerspectiva' => fn($q) => $q->where('flgEstado', '1'),
+        ])
+            ->where('flgEstado', '1')
+            ->where('flgRevision', '1')
+            ->where('idMonitoreoNodo', 'CYB')
+            ->whereIn('flgStatus', ['C', 'O'])
+            ->whereHas('nodoPerspectiva', fn($q) => $q->where('flgEstado', '1'))
+            ->whereHas('equipo', fn($q) => $q->where('flgEstado', '1'))
+            ->whereHas('equipo.oficina', fn($q) => $q->where('flgEstado', '1'))
+            ->whereHas('Ip', fn($q) => $q->where('flgEstado', '1'))
+            ->whereHas('servicio', fn($q) => $q->where('flgEstado', '1'));
+
+        // Filtrar por idNodoPerspectiva si se pasa
+        if (!empty($idNodoPerspectiva)) {
+            $query->where('idNodoPerspectiva', $idNodoPerspectiva);
+        }
+
+        $monitoreos = $query->get();
+        $resultado = [];
+
+        foreach ($monitoreos as $monitoreo) {
+            $equipo = $monitoreo->equipo ?? null;
+            $oficina = $equipo->oficina ?? null;
+            if (!$oficina || !$equipo) continue;
+
+            // Ignorar equipos inactivos
+            if ($equipo->flgEstado !== '1') continue;
+
+            // Validar idEquipoPerspectiva si existe
+            if (!empty($equipo->idEquipoPerspectiva) && $equipo->idEquipoPerspectiva !== $monitoreo->idNodoPerspectiva) {
+                continue;
+            }
+
+            $idOficinaPerspectiva = $oficina->idOficinaPerspectiva ?? null;
+
+            //  Solo ignorar oficina si su perspectiva existe y NO coincide ni con el monitoreo ni con su propio nodo
+            if (
+                $idOficinaPerspectiva
+                && $idOficinaPerspectiva !== $monitoreo->idNodoPerspectiva
+                && $idOficinaPerspectiva !== $oficina->idOficinaNodo
+            ) {
+                continue;
+            }
+
+            $keyOficina = $oficina->idOficina . ($oficina->idOficinaNodo ?? '');
+            $keyEquipo = $monitoreo->idEquipo;
+
+            if (!isset($resultado[$keyOficina])) {
+                $resultado[$keyOficina] = [
+                    'idOficina' => $oficina->idOficina,
+                    'idOficinaNodo' => $oficina->idOficinaNodo ?? null,
+                    'idOficinaPerspectiva' => $idOficinaPerspectiva,
+                    'nombre' => $oficina->nombre ?? '',
+                    'equipos' => [],
+                ];
+            }
+
+            if (!isset($resultado[$keyOficina]['equipos'][$keyEquipo])) {
+                $resultado[$keyOficina]['equipos'][$keyEquipo] = [
+                    'idEquipo' => $equipo->idEquipo,
+                    'descripcion' => $equipo->descripcion ?? '',
+                    'monitoreos' => [],
+                ];
+            }
+
+            $tiempoTranscurrido = Carbon::parse($monitoreo->fechaUltimaVerificacion)->diff(Carbon::now());
+            $tiempoFormateado = sprintf(
+                '%02d:%02d:%02d',
+                $tiempoTranscurrido->days * 24 + $tiempoTranscurrido->h,
+                $tiempoTranscurrido->i,
+                $tiempoTranscurrido->s
+            );
+            $color = $monitoreo->flgStatus === 'O'
+                ? '#2F8C39'
+                : MonitoreoHelper::colorTiempoTranscurrido($monitoreo->fechaUltimaVerificacion);
+
+            $resultado[$keyOficina]['equipos'][$keyEquipo]['monitoreos'][] = [
+                'idMonitoreo' => $monitoreo->idMonitoreo,
+                'idMonitoreoNodo' => $monitoreo->idMonitoreoNodo,
+                'idNodoPerspectiva' => $monitoreo->idNodoPerspectiva,
+                'dscMonitoreo' => $monitoreo->dscMonitoreo,
+                'equipo' => $monitoreo->equipo->descripcion ?? '',
+                'idEquipo' => $monitoreo->idEquipo,
+                'servicio' => $monitoreo->servicio->maeMaestro->nombre ?? $monitoreo->servicio->nombre ?? '',
+                'flgStatus' => $monitoreo->flgStatus,
+                'ip' => $monitoreo->Ip->ip ?? '',
+                'frecuencia' => $monitoreo->frecuencia->dscFrecuencia ?? '-',
+                'fechaUltimaVerificacion' => $monitoreo->fechaUltimaVerificacion,
+                'tiempoTranscurrido' => $tiempoFormateado,
+                'color' => $color
+            ];
+        }
+
+        foreach ($resultado as &$oficina) {
+            $oficina['equipos'] = array_values($oficina['equipos']);
+        }
+
+        return response()->json([
+            'estado' => true,
+            'mensaje' => 'Monitoreos caídos obtenidos correctamente',
+            'data' => array_values($resultado),
+        ]);
+    }
+
+    public function MoverRevision($idNodoPerspectiva, $idMonitoreo)
+    {
+        $updated = Monitoreo::where('idNodoPerspectiva', $idNodoPerspectiva)
+            ->where('idMonitoreo', $idMonitoreo)
+            ->update(['flgRevision' => '1']);
+
+        return response()->json([
+            'success' => $updated > 0,
+            'idNodoPerspectiva' => $idNodoPerspectiva,
+            'idMonitoreo' => $idMonitoreo
+        ]);
+    }
+
+    public function QuitarRevision($idNodoPerspectiva, $idMonitoreo)
+    {
+        $updated = Monitoreo::where('idNodoPerspectiva', $idNodoPerspectiva)
+            ->where('idMonitoreo', $idMonitoreo)
+            ->update(['flgRevision' => '0']);
+
+        return response()->json([
+            'success' => $updated > 0,
+            'idNodoPerspectiva' => $idNodoPerspectiva,
+            'idMonitoreo' => $idMonitoreo
+        ]);
+    }
+
+
+    public function MonitoreoSolucionado($idNodoPerspectiva, $idMonitoreo)
+    {
+        // Obtener el monitoreo primero
+        $monitoreo = Monitoreo::where('idNodoPerspectiva', $idNodoPerspectiva)
+            ->where('idMonitoreo', $idMonitoreo)
+            ->first();
+
+        if (!$monitoreo) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Monitoreo no encontrado',
+                'idNodoPerspectiva' => $idNodoPerspectiva,
+                'idMonitoreo' => $idMonitoreo
+            ]);
+        }
+
+        // Solo permitir si flgStatus es "O"
+        if ($monitoreo->flgStatus !== 'O') {
+            return response()->json([
+                'success' => false,
+                'message' => 'No se puede cambiar a solucionado una alerta con un estado no permitido',
+                'flgStatus' => $monitoreo->flgStatus
+            ]);
+        }
+
+        // Actualizar flgOcultarMonitoreo
+        $monitoreo->flgCondicionSolucionado = '0';
+        $monitoreo->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Monitoreo marcado como solucionado',
+            'idNodoPerspectiva' => $idNodoPerspectiva,
+            'idMonitoreo' => $idMonitoreo
         ]);
     }
 }

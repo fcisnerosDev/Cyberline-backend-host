@@ -12,6 +12,7 @@ class Equipo extends Model
     public $timestamps = false;
     protected $fillable = [
         'idEquipo',
+        'flgEstado',
 
     ];
     public function oficina()
@@ -21,5 +22,10 @@ class Equipo extends Model
     public function ips()
     {
         return $this->hasMany(Ip::class, 'idEquipo', 'idEquipo');
+    }
+    public function monitoreos()
+    {
+        return $this->hasMany(Monitoreo::class, 'idEquipo', 'idEquipo')
+            ->where('flgEstado', '1');
     }
 }
