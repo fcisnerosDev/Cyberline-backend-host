@@ -60,7 +60,11 @@ class SyncCybernetOldController extends Controller
                             $item[$key] = $this->limpiarFecha($value);
                         }
                     }
-                    $flgSolucionado = ($item['flgStatus'] === 'C') ? '0' : ($item['flgSolucionado'] ?? '0');
+                    $flgSolucionado = ($item['flgStatus'] === 'C')
+                        ? '0'
+                        : ((isset($item['flgSolucionado']) && in_array($item['flgSolucionado'], ['0', '1'], true))
+                            ? $item['flgSolucionado']
+                            : '0');
 
                     DB::table('monMonitoreo')->updateOrInsert(
                         ['idMonitoreo' => $item['idMonitoreo']],
@@ -68,10 +72,10 @@ class SyncCybernetOldController extends Controller
                             'idNodoPerspectiva'        => $item['idNodoPerspectiva'],
                             'flgStatus'                => $item['flgStatus'],
                             'flgEstado'                => $item['flgEstado'],
-                            'flgSolucionado'           => $flgSolucionado,
+                            'flgSolucionado'           => $item['flgSolucionado'],
                             'fechaUltimaVerificacion' => $item['fechaUltimaVerificacion'],
                             'fechaUltimoCambio'       => $item['fechaUltimoCambio'],
-                            'flgSyncHijo'              => "1"
+                            'flgSyncHijo'              => '1',
                         ]
                     );
 
