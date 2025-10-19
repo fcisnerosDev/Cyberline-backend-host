@@ -19,90 +19,92 @@ use Illuminate\Support\Facades\DB;
 class SyncCybernetOldController extends Controller
 {
     public function UpdateMonitoreoData()
-{
-    $idNodos = $this->getValidNodoIdForCybernetPrimary();
+    {
+        $idNodos = $this->getValidNodoIdForCybernetPrimary();
 
-    if ($idNodos->isEmpty()) {
-        echo "No se encontraron nodos válidos para la sincronización." . PHP_EOL;
-        return response()->json([
-            "status" => "error",
-            "message" => "No se encontraron nodos válidos para la sincronización."
-        ], 400);
-    }
-
-    $sysNodos = SysNodo::whereIn('idNodo', $idNodos)->get();
-    $updatedRecords = [];
-
-    foreach ($sysNodos as $sysNodo) {
-        // echo "------" . PHP_EOL;
-        // echo "Nodo: {$sysNodo->idNodo}" . PHP_EOL;
-        // echo "urlWs original: {$sysNodo->urlWs}" . PHP_EOL;
-
-        $url = rtrim($sysNodo->urlWs, '/') . "/sync.php";
-        // echo "URL construida: $url" . PHP_EOL;
-
-        try {
-            $response = Http::get($url);
-        } catch (\Exception $e) {
-            // echo "Error en la solicitud HTTP: " . $e->getMessage() . PHP_EOL;
-            continue;
+        if ($idNodos->isEmpty()) {
+            echo "No se encontraron nodos válidos para la sincronización." . PHP_EOL;
+            return response()->json([
+                "status" => "error",
+                "message" => "No se encontraron nodos válidos para la sincronización."
+            ], 400);
         }
 
-        if ($response->successful()) {
-            // echo "Respuesta recibida correctamente." . PHP_EOL;
-            $data = $response->json();
+        $sysNodos = SysNodo::whereIn('idNodo', $idNodos)->get();
+        $updatedRecords = [];
 
-            DB::statement('SET @DISABLE_TRIGGER = 1;');
+        foreach ($sysNodos as $sysNodo) {
+            // echo "------" . PHP_EOL;
+            // echo "Nodo: {$sysNodo->idNodo}" . PHP_EOL;
+            // echo "urlWs original: {$sysNodo->urlWs}" . PHP_EOL;
 
-            foreach ($data['data'] as $item) {
-                foreach ($item as $key => $value) {
-                    if (Str::startsWith($key, 'fecha')) {
-                        $item[$key] = $this->limpiarFecha($value);
-                    }
-                }
+            $url = rtrim($sysNodo->urlWs, '/') . "/sync.php";
+            // echo "URL construida: $url" . PHP_EOL;
 
-                DB::table('monMonitoreo')->updateOrInsert(
-                    ['idMonitoreo' => $item['idMonitoreo']],
-                    [
-                        'idNodoPerspectiva'        => $item['idNodoPerspectiva'],
-                        'flgStatus'                => $item['flgStatus'],
-                        'flgEstado'                => $item['flgEstado'],
-                        'fechaUltimaVerificacion' => $item['fechaUltimaVerificacion'],
-                        'fechaUltimoCambio'       => $item['fechaUltimoCambio'],
-                        'flgSyncHijo'              => "1"
-                    ]
-                );
-
-                $updatedRecords[] = [
-                    "idNodo"            => $sysNodo->idNodo,
-                    "idMonitoreo"       => $item['idMonitoreo'],
-                    "idNodoPerspectiva" => $item['idNodoPerspectiva'],
-                    "flgStatus"         => $item['flgStatus'],
-                    'fechaUltimaVerificacion' => $item['fechaUltimaVerificacion'],
-                    'fechaUltimoCambio'       => $item['fechaUltimoCambio'],
-                    "flgEstado"         => $item['flgEstado']
-                ];
+            try {
+                $response = Http::get($url);
+            } catch (\Exception $e) {
+                // echo "Error en la solicitud HTTP: " . $e->getMessage() . PHP_EOL;
+                continue;
             }
 
-            DB::statement('SET @DISABLE_TRIGGER = NULL;');
-        } else {
-            // echo "Fallo al obtener datos de $url - Código HTTP: " . $response->status() . PHP_EOL;
-            return response()->json([
-                "status"  => "error",
-                "message" => "No se pudo obtener los datos de $url"
-            ], 500);
+            if ($response->successful()) {
+                // echo "Respuesta recibida correctamente." . PHP_EOL;
+                $data = $response->json();
+
+                DB::statement('SET @DISABLE_TRIGGER = 1;');
+
+                foreach ($data['data'] as $item) {
+                    foreach ($item as $key => $value) {
+                        if (Str::startsWith($key, 'fecha')) {
+                            $item[$key] = $this->limpiarFecha($value);
+                        }
+                    }
+                    $flgSolucionado = ($item['flgStatus'] === 'C') ? '0' : ($item['flgSolucionado'] ?? '0');
+
+                    DB::table('monMonitoreo')->updateOrInsert(
+                        ['idMonitoreo' => $item['idMonitoreo']],
+                        [
+                            'idNodoPerspectiva'        => $item['idNodoPerspectiva'],
+                            'flgStatus'                => $item['flgStatus'],
+                            'flgEstado'                => $item['flgEstado'],
+                            'flgSolucionado'           => $flgSolucionado,
+                            'fechaUltimaVerificacion' => $item['fechaUltimaVerificacion'],
+                            'fechaUltimoCambio'       => $item['fechaUltimoCambio'],
+                            'flgSyncHijo'              => "1"
+                        ]
+                    );
+
+                    $updatedRecords[] = [
+                        "idNodo"            => $sysNodo->idNodo,
+                        "idMonitoreo"       => $item['idMonitoreo'],
+                        "idNodoPerspectiva" => $item['idNodoPerspectiva'],
+                        "flgStatus"         => $item['flgStatus'],
+                        'fechaUltimaVerificacion' => $item['fechaUltimaVerificacion'],
+                        'fechaUltimoCambio'       => $item['fechaUltimoCambio'],
+                        "flgEstado"         => $item['flgEstado']
+                    ];
+                }
+
+                DB::statement('SET @DISABLE_TRIGGER = NULL;');
+            } else {
+                // echo "Fallo al obtener datos de $url - Código HTTP: " . $response->status() . PHP_EOL;
+                return response()->json([
+                    "status"  => "error",
+                    "message" => "No se pudo obtener los datos de $url"
+                ], 500);
+            }
         }
+
+        // echo "------" . PHP_EOL;
+        // echo "Total de registros actualizados: " . count($updatedRecords) . PHP_EOL;
+
+        return response()->json([
+            "status"          => "success",
+            "message"         => "Datos sincronizados correctamente.",
+            "updated_records" => $updatedRecords,
+        ]);
     }
-
-    // echo "------" . PHP_EOL;
-    // echo "Total de registros actualizados: " . count($updatedRecords) . PHP_EOL;
-
-    return response()->json([
-        "status"          => "success",
-        "message"         => "Datos sincronizados correctamente.",
-        "updated_records" => $updatedRecords,
-    ]);
-}
 
 
     // public function UpdateMonitoreoData()
@@ -253,7 +255,7 @@ class SyncCybernetOldController extends Controller
             ->whereIn('idEquipoPerspectiva', $idNodos)
             ->get();
     }
-     public function getFilteredFrecuenciaData($idNodos)
+    public function getFilteredFrecuenciaData($idNodos)
     {
         return Frecuencia::where('flgEstado', "1")
             ->whereIn('idNodoPerspectiva', $idNodos)
@@ -334,7 +336,7 @@ class SyncCybernetOldController extends Controller
         ]);
     }
 
-     public function DataFrecuencia($idNodo = null)
+    public function DataFrecuencia($idNodo = null)
     {
         $idNodos = $this->getValidNodoId();
         $idNodos = $this->getValidNodoId($idNodo);
