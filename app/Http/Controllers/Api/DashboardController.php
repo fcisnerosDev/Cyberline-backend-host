@@ -280,27 +280,27 @@ class DashboardController extends Controller
     }
 
     public function getListMonitoreoCaidos(Request $request)
-    {
-        $idNodoPerspectiva = $request->query('idNodoPerspectiva'); // opcional
+{
+    $idNodoPerspectiva = $request->query('idNodoPerspectiva'); // opcional
 
-        $query = Monitoreo::with([
-            'equipo' => function ($q) {
-                $q->where('flgEstado', '1')->with([
-                    'oficina' => function ($q2) {
-                        $q2->where('flgEstado', '1');
-                    }
-                ]);
-            },
-            'Ip' => fn($q) => $q->where('flgEstado', '1'),
-            'servicio' => fn($q) => $q->where('flgEstado', '1')->with([
-                'maeMaestro' => fn($q2) => $q2->where('flgEstado', '1')
-            ]),
-            'frecuencia' => fn($q) => $q->where('flgEstado', '1'),
-
-            'nodoPerspectiva' => fn($q) => $q->where('flgEstado', '1'),
-        ])
-            ->where('flgEstado', '1')
+    $query = Monitoreo::with([
+        'equipo' => function ($q) {
+            $q->where('flgEstado', '1')->with([
+                'oficina' => function ($q2) {
+                    $q2->where('flgEstado', '1');
+                }
+            ]);
+        },
+        'Ip' => fn($q) => $q->where('flgEstado', '1'),
+        'servicio' => fn($q) => $q->where('flgEstado', '1')->with([
+            'maeMaestro' => fn($q2) => $q2->where('flgEstado', '1')
+        ]),
+        'frecuencia' => fn($q) => $q->where('flgEstado', '1'),
+        'nodoPerspectiva' => fn($q) => $q->where('flgEstado', '1'),
+    ])
+        ->where('flgEstado', '1')
             ->where('flgRevision', '0')
+            ->where('flgSolucionado', '0')
             ->where('idMonitoreoNodo', 'CYB')
             ->where(function ($q) {
                 $q->whereIn('flgStatus', ['C']) // caídos
@@ -317,95 +317,121 @@ class DashboardController extends Controller
             $query->where('idNodoPerspectiva', $idNodoPerspectiva);
         }
 
-        $monitoreos = $query->get();
-        $resultado = [];
+    $monitoreos = $query->get();
+    $resultado = [];
 
-        foreach ($monitoreos as $monitoreo) {
-            if (isset($monitoreo->flgOcultarMonitoreo) && $monitoreo->flgOcultarMonitoreo === '1') {
-                continue;
-            }
-            $equipo = $monitoreo->equipo ?? null;
-            $oficina = $equipo->oficina ?? null;
-            if (!$oficina || !$equipo) continue;
+    foreach ($monitoreos as $monitoreo) {
+        if (isset($monitoreo->flgOcultarMonitoreo) && $monitoreo->flgOcultarMonitoreo === '1') {
+            continue;
+        }
 
-            // Ignorar equipos inactivos
-            if ($equipo->flgEstado !== '1') continue;
+        $equipo = $monitoreo->equipo ?? null;
+        $oficina = $equipo->oficina ?? null;
+        if (!$oficina || !$equipo) continue;
+        if ($equipo->flgEstado !== '1') continue;
 
-            // Validar idEquipoPerspectiva si existe
-            if (!empty($equipo->idEquipoPerspectiva) && $equipo->idEquipoPerspectiva !== $monitoreo->idNodoPerspectiva) {
-                continue;
-            }
+        if (!empty($equipo->idEquipoPerspectiva) && $equipo->idEquipoPerspectiva !== $monitoreo->idNodoPerspectiva) {
+            continue;
+        }
 
-            $idOficinaPerspectiva = $oficina->idOficinaPerspectiva ?? null;
+        $idOficinaPerspectiva = $oficina->idOficinaPerspectiva ?? null;
+        if (
+            $idOficinaPerspectiva
+            && $idOficinaPerspectiva !== $monitoreo->idNodoPerspectiva
+            && $idOficinaPerspectiva !== $oficina->idOficinaNodo
+        ) {
+            continue;
+        }
 
-            //  Solo ignorar oficina si su perspectiva existe y NO coincide ni con el monitoreo ni con su propio nodo
-            if (
-                $idOficinaPerspectiva
-                && $idOficinaPerspectiva !== $monitoreo->idNodoPerspectiva
-                && $idOficinaPerspectiva !== $oficina->idOficinaNodo
-            ) {
-                continue;
-            }
+        $keyOficina = $oficina->idOficina . ($oficina->idOficinaNodo ?? '');
+        $keyEquipo = $monitoreo->idEquipo;
 
-            $keyOficina = $oficina->idOficina . ($oficina->idOficinaNodo ?? '');
-            $keyEquipo = $monitoreo->idEquipo;
-
-            if (!isset($resultado[$keyOficina])) {
-                $resultado[$keyOficina] = [
-                    'idOficina' => $oficina->idOficina,
-                    'idOficinaNodo' => $oficina->idOficinaNodo ?? null,
-                    'idOficinaPerspectiva' => $idOficinaPerspectiva,
-                    'nombre' => $oficina->nombre ?? '',
-                    'equipos' => [],
-                ];
-            }
-
-            if (!isset($resultado[$keyOficina]['equipos'][$keyEquipo])) {
-                $resultado[$keyOficina]['equipos'][$keyEquipo] = [
-                    'idEquipo' => $equipo->idEquipo,
-                    'descripcion' => $equipo->descripcion ?? '',
-                    'monitoreos' => [],
-                ];
-            }
-
-            $tiempoTranscurrido = Carbon::parse($monitoreo->fechaUltimaVerificacion)->diff(Carbon::now());
-            $tiempoFormateado = sprintf(
-                '%02d:%02d:%02d',
-                $tiempoTranscurrido->days * 24 + $tiempoTranscurrido->h,
-                $tiempoTranscurrido->i,
-                $tiempoTranscurrido->s
-            );
-            $color = MonitoreoHelper::colorTiempoTranscurrido($monitoreo->fechaUltimaVerificacion);
-            if ($monitoreo->flgCondicionSolucionado === '1' && $monitoreo->flgStatus === 'O') {
-                $color = '#2f8c39';
-            }
-
-            $resultado[$keyOficina]['equipos'][$keyEquipo]['monitoreos'][] = [
-                'idMonitoreo' => $monitoreo->idMonitoreo,
-                'idMonitoreoNodo' => $monitoreo->idMonitoreoNodo,
-                'idNodoPerspectiva' => $monitoreo->idNodoPerspectiva,
-                'dscMonitoreo' => $monitoreo->dscMonitoreo,
-                'servicio' => $monitoreo->servicio->maeMaestro->nombre ?? $monitoreo->servicio->nombre ?? '',
-                'equipo' => $monitoreo->equipo->descripcion ?? '',
-                'flgStatus' => $monitoreo->flgStatus,
-                'ip' => $monitoreo->Ip->ip ?? '',
-                'frecuencia' => $monitoreo->frecuencia->dscFrecuencia ?? '-',
-                'fechaUltimaVerificacion' => $monitoreo->fechaUltimaVerificacion,
-                'tiempoTranscurrido' => $tiempoFormateado,
-                'color' => $color
+        // Inicializamos la oficina si no existe
+        if (!isset($resultado[$keyOficina])) {
+            $resultado[$keyOficina] = [
+                'idOficina' => $oficina->idOficina,
+                'idOficinaNodo' => $oficina->idOficinaNodo ?? null,
+                'idOficinaPerspectiva' => $idOficinaPerspectiva,
+                'nombre' => $oficina->nombre ?? '',
+                'equipos' => [],
+                'totalCaidos' => 0,
+                'totalActivos' => 0,
+                'bgColor' => null, // <-- color de la oficina
             ];
         }
 
-        foreach ($resultado as &$oficina) {
-            $oficina['equipos'] = array_values($oficina['equipos']);
+        // Inicializamos el equipo si no existe
+        if (!isset($resultado[$keyOficina]['equipos'][$keyEquipo])) {
+            $resultado[$keyOficina]['equipos'][$keyEquipo] = [
+                'idEquipo' => $equipo->idEquipo,
+                'descripcion' => $equipo->descripcion ?? '',
+                'monitoreos' => [],
+                'caidos' => 0,
+                'activos' => 0,
+            ];
         }
 
-        return response()->json([
-            'estado' => true,
-            'mensaje' => 'Monitoreos caídos obtenidos correctamente',
-            'data' => array_values($resultado),
-        ]);
+        // Calculamos tiempo y color
+        $tiempoTranscurrido = Carbon::parse($monitoreo->fechaUltimaVerificacion)->diff(Carbon::now());
+        $tiempoFormateado = sprintf(
+            '%02d:%02d:%02d',
+            $tiempoTranscurrido->days * 24 + $tiempoTranscurrido->h,
+            $tiempoTranscurrido->i,
+            $tiempoTranscurrido->s
+        );
+
+        $color = MonitoreoHelper::colorTiempoTranscurrido($monitoreo->fechaUltimaVerificacion);
+        if ($monitoreo->flgCondicionSolucionado === '1' && $monitoreo->flgStatus === 'O') {
+            $color = '#2f8c39';
+        }
+
+        // Contamos por estado
+        if ($monitoreo->flgStatus === 'C') {
+            $resultado[$keyOficina]['totalCaidos']++;
+            $resultado[$keyOficina]['equipos'][$keyEquipo]['caidos']++;
+        } elseif ($monitoreo->flgStatus === 'O') {
+            $resultado[$keyOficina]['totalActivos']++;
+            $resultado[$keyOficina]['equipos'][$keyEquipo]['activos']++;
+        }
+
+        // Agregamos el monitoreo
+        $resultado[$keyOficina]['equipos'][$keyEquipo]['monitoreos'][] = [
+            'idMonitoreo' => $monitoreo->idMonitoreo,
+            'idMonitoreoNodo' => $monitoreo->idMonitoreoNodo,
+            'idNodoPerspectiva' => $monitoreo->idNodoPerspectiva,
+            'dscMonitoreo' => $monitoreo->dscMonitoreo,
+            'servicio' => $monitoreo->servicio->maeMaestro->nombre ?? $monitoreo->servicio->nombre ?? '',
+            'equipo' => $monitoreo->equipo->descripcion ?? '',
+            'flgStatus' => $monitoreo->flgStatus,
+            'ip' => $monitoreo->Ip->ip ?? '',
+            'frecuencia' => $monitoreo->frecuencia->dscFrecuencia ?? '-',
+            'fechaUltimaVerificacion' => $monitoreo->fechaUltimaVerificacion,
+            'tiempoTranscurrido' => $tiempoFormateado,
+            'color' => $color
+        ];
     }
+
+    // Reindexar los arrays y definir color según cantidad
+    foreach ($resultado as &$oficina) {
+        $oficina['equipos'] = array_values($oficina['equipos']);
+
+        if ($oficina['totalCaidos'] > $oficina['totalActivos']) {
+            $oficina['bgColor'] = '#CB1C1A'; // más caídos → rojo
+        } elseif ($oficina['totalActivos'] > $oficina['totalCaidos']) {
+            $oficina['bgColor'] = '#2f8c39'; // más activos → verde
+        } else {
+            $oficina['bgColor'] = '#ff8800'; // iguales → naranja
+        }
+    }
+
+    return response()->json([
+        'estado' => true,
+        'mensaje' => 'Monitoreos obtenidos correctamente',
+        'data' => array_values($resultado),
+    ]);
+}
+
+
 
 
     public function getListMonitoreoRevision(Request $request)
@@ -582,7 +608,7 @@ class DashboardController extends Controller
         }
 
         // Actualizar flgOcultarMonitoreo
-        $monitoreo->flgCondicionSolucionado = '0';
+        $monitoreo->flgSolucionado = '1';
         $monitoreo->save();
 
         return response()->json([
