@@ -72,7 +72,7 @@ class SyncCybernetOldController extends Controller
                             'idNodoPerspectiva'        => $item['idNodoPerspectiva'],
                             'flgStatus'                => $item['flgStatus'],
                             'flgEstado'                => $item['flgEstado'],
-                            'flgSolucionado'           => $item['flgSolucionado'],
+                            'flgSolucionado'           => $flgSolucionado,
                             'fechaUltimaVerificacion' => $item['fechaUltimaVerificacion'],
                             'fechaUltimoCambio'       => $item['fechaUltimoCambio'],
                             'flgSyncHijo'              => '1',
