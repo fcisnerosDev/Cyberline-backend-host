@@ -87,6 +87,7 @@ class SyncCybernetOldController extends Controller
                         "flgStatus"         => $item['flgStatus'],
                         'fechaUltimaVerificacion' => $item['fechaUltimaVerificacion'],
                         'fechaUltimoCambio'       => $item['fechaUltimoCambio'],
+                        'flgSolucionado'           => $item['flgSolucionado'],
                         "flgEstado"         => $item['flgEstado']
                     ];
                 }
