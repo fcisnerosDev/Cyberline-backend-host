@@ -60,11 +60,19 @@ class SyncCybernetOldController extends Controller
                             $item[$key] = $this->limpiarFecha($value);
                         }
                     }
-                    $flgSolucionado = ($item['flgStatus'] === 'C')
-                        ? '0'
-                        : ((isset($item['flgSolucionado']) && in_array($item['flgSolucionado'], ['0', '1'], true))
-                            ? $item['flgSolucionado']
-                            : '0');
+                    if ($item['flgStatus'] === 'C') {
+                        // Si el estado es "C", forzamos flgSolucionado a 0
+                        $flgSolucionado = '0';
+                    } else {
+                        // Si el estado NO es "C"
+                        if (isset($item['flgSolucionado'])) {
+                            // Si existe el valor, lo dejamos igual
+                            $flgSolucionado = $item['flgSolucionado'];
+                        } else {
+                            // Si no existe, lo inicializamos como 0
+                            $flgSolucionado = '0';
+                        }
+                    }
 
 
                     DB::table('monMonitoreo')->updateOrInsert(
