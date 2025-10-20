@@ -65,11 +65,11 @@ class SyncCybernetOldController extends Controller
                         $flgSolucionado = '0';
                     } else {
                         // Si el estado NO es "C"
-                        if (isset($item['flgSolucionado'])) {
-                            // Si existe el valor, lo dejamos igual
-                            $flgSolucionado = $item['flgSolucionado'];
+                        if (isset($item['flgSolucionado']) && $item['flgSolucionado'] !== '') {
+                            // Si existe el valor y no está vacío, lo dejamos igual
+                            $flgSolucionado = (string)$item['flgSolucionado'];
                         } else {
-                            // Si no existe, lo inicializamos como 0
+                            // Si no existe o está vacío, lo inicializamos como 0
                             $flgSolucionado = '0';
                         }
                     }
