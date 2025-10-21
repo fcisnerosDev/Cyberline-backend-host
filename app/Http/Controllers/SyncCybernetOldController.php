@@ -63,15 +63,19 @@ class SyncCybernetOldController extends Controller
                         }
                     }
                     if ($item['flgStatus'] === 'C') {
-                        // Si el estado es "C", forzamos flgSolucionado a 0
-                        $flgSolucionado = '0';
+                        // Si está en "C" (crítico o cerrado)
+                        if (isset($item['flgCondicionSolucionado']) && $item['flgCondicionSolucionado'] === '1') {
+                            // Mantiene el valor actual, no se cambia
+                            $flgSolucionado = isset($item['flgSolucionado']) ? (string)$item['flgSolucionado'] : '0';
+                        } else {
+                            // Caso normal: se fuerza a 0
+                            $flgSolucionado = '0';
+                        }
                     } else {
-                        // Si el estado NO es "C"
+                        // Si no está en "C", se conserva la lógica normal
                         if (isset($item['flgSolucionado']) && $item['flgSolucionado'] !== '') {
-                            // Si existe el valor y no está vacío, lo dejamos igual
                             $flgSolucionado = (string)$item['flgSolucionado'];
                         } else {
-                            // Si no existe o está vacío, lo inicializamos como 0
                             $flgSolucionado = '0';
                         }
                     }
@@ -558,5 +562,5 @@ class SyncCybernetOldController extends Controller
 
     //Redis
 
-  
+
 }

@@ -71,13 +71,13 @@ class LegacyRolesPermissionsSeeder extends Seeder
         // ----------------------
         // ASIGNAR ROL AL USUARIO LEGACY
         // ----------------------
-        $usuarioPrueba = UserCyberV6::where('idPersona', 279)->first();
+        $usuarioPrueba = UserCyberV6::where('idPersona', 3177)->first();
 
         if ($usuarioPrueba) {
-            $usuarioPrueba->assignRole('Contabilidad'); // Usa automáticamente el guard del modelo
+            $usuarioPrueba->assignRole('Administracion'); // Usa automáticamente el guard del modelo
             echo "Rol 'Contabilidad' asignado al usuario {$usuarioPrueba->usuario}\n";
         } else {
-            echo "Usuario con idPersona 279 no encontrado.\n";
+            echo "Usuario con idPersona 3177 no encontrado.\n";
         }
 
         echo "Seeder ejecutado correctamente.\n";
