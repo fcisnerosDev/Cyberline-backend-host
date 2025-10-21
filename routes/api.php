@@ -146,6 +146,8 @@ Route::controller(MonitoreoController::class)->group(function () {
     // Modulo Equipos
     Route::get('/equipos-compania', 'GetEquiposCompania')->name('GetEquiposCompania');
     Route::get('/equipos-oficina', 'GetOficinasCompania')->name('GetOficinasCompania');
+    // reporte
+      Route::get('/monitoreo/reporte', 'exportReportMonitoreo')->name('exportReportMonitoreo');
 });
 
 // Grupo de rutas de autenticación
