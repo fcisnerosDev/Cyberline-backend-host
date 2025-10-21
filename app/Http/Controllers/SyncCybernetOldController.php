@@ -15,6 +15,8 @@ use App\Models\Servicio;
 use App\Models\ServicioSecundario;
 use App\Models\SysNodo;
 use Illuminate\Support\Facades\DB;
+//redis
+use Illuminate\Support\Facades\Redis;
 
 class SyncCybernetOldController extends Controller
 {
@@ -552,4 +554,9 @@ class SyncCybernetOldController extends Controller
 
         return $query->pluck('idNodo'); // Retorna una colección de IDs
     }
+
+
+    //Redis
+
+  
 }

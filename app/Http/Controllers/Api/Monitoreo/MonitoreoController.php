@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\Monitoreo;
 
+use App\Exports\MonitoreoReporte;
 use App\Http\Controllers\Controller;
 use App\Models\Equipo;
 use App\Models\MonResumen;
@@ -15,17 +16,14 @@ class MonitoreoController extends Controller
 {
     public function getListMonitoreoServicios(Request $request)
     {
-        // Parámetros de filtro
-        $idOficina = $request->query('idOficina');
-        $idOficinaNodo = $request->query('idOficinaNodo');
-        $idCompania = $request->query('idCompania');
-        $idCompaniaNodo = $request->query('idCompaniaNodo');
+        // Parámetro para la oficina de perspectiva
+        $idOficinaPerspectiva = $request->query('idOficinaPerspectiva');
         $flgStatus = $request->query('flgStatus'); // filtro opcional
         $equipoDsc = $request->query('equipoDsc');
         $ipDsc = $request->query('ip');
         $idEquipo = $request->query('idEquipo');
 
-        // Consulta base: solo monitoreos activos (flgEstado = "1") y servicios distintos a 'ping' y activos
+        // Consulta base: monitoreos activos y servicios distintos a 'ping'
         $query = Monitoreo::with(['equipo.oficina', 'Ip', 'servicio.maeMaestro', 'frecuencia'])
             ->where('flgEstado', '1') // monitoreo activo
             ->whereHas('servicio', function ($q) {
@@ -41,7 +39,7 @@ class MonitoreoController extends Controller
                 $q->where('flgEstado', '1'); // IP activa
             });
 
-        // Filtro por status del monitoreo (string)
+        // Filtros opcionales
         if ($flgStatus) {
             $query->where('flgStatus', $flgStatus);
         }
@@ -49,14 +47,11 @@ class MonitoreoController extends Controller
             $query->where('idEquipo', $idEquipo);
         }
 
-
-        // Filtros opcionales sobre oficina a través de la relación equipo -> oficina
-        if ($idOficina || $idOficinaNodo || $idCompania || $idCompaniaNodo) {
-            $query->whereHas('equipo.oficina', function ($q) use ($idOficina, $idOficinaNodo, $idCompania, $idCompaniaNodo) {
-                if ($idOficina) $q->where('idOficina', $idOficina);
-                if ($idOficinaNodo) $q->where('idOficinaNodo', $idOficinaNodo);
-                if ($idCompania) $q->where('idCompania', $idCompania);
-                if ($idCompaniaNodo) $q->where('idCompaniaNodo', $idCompaniaNodo);
+        // Filtro por oficina y nodo fijo
+        if ($idOficinaPerspectiva) {
+            $query->whereHas('equipo.oficina', function ($q) use ($idOficinaPerspectiva) {
+                $q->where('idOficinaPerspectiva', $idOficinaPerspectiva)
+                    ->where('idOficinaNodo', 'CYB'); // valor fijo
             });
         }
 
@@ -76,7 +71,7 @@ class MonitoreoController extends Controller
 
         $monitoreos = $query->get();
 
-        // Agrupar por oficina usando datos desde la relación
+        // Agrupar por oficina
         $resultado = [];
         foreach ($monitoreos as $monitoreo) {
             $oficina = $monitoreo->equipo->oficina ?? null;
@@ -98,9 +93,9 @@ class MonitoreoController extends Controller
 
             $tiempoFormateado = sprintf(
                 '%d:%02d:%02d',
-                $tiempoTranscurrido->days * 24 + $tiempoTranscurrido->h, // total horas incluyendo días
-                $tiempoTranscurrido->i, // minutos
-                $tiempoTranscurrido->s  // segundos
+                $tiempoTranscurrido->days * 24 + $tiempoTranscurrido->h,
+                $tiempoTranscurrido->i,
+                $tiempoTranscurrido->s
             );
 
             $equipo = [
@@ -132,12 +127,10 @@ class MonitoreoController extends Controller
         ]);
     }
 
+
     public function getListMonitoreoConectividad(Request $request)
     {
-        $idOficina = $request->query('idOficina');
-        $idOficinaNodo = $request->query('idOficinaNodo');
-        $idCompania = $request->query('idCompania');
-        $idCompaniaNodo = $request->query('idCompaniaNodo');
+        $idOficinaPerspectiva = $request->query('idOficinaPerspectiva'); // parámetro que llega
         $flgStatus = $request->query('flgStatus');
         $equipoDsc = $request->query('equipoDsc');
         $ipDsc = $request->query('ip');
@@ -156,6 +149,7 @@ class MonitoreoController extends Controller
                 $q->where('flgEstado', '1'); // IP activa
             });
 
+        // Filtros opcionales
         if ($flgStatus) {
             $query->where('flgStatus', $flgStatus);
         }
@@ -163,21 +157,22 @@ class MonitoreoController extends Controller
             $query->where('idEquipo', $idEquipo);
         }
 
-        if ($idOficina || $idOficinaNodo || $idCompania || $idCompaniaNodo) {
-            $query->whereHas('equipo.oficina', function ($q) use ($idOficina, $idOficinaNodo, $idCompania, $idCompaniaNodo) {
-                if ($idOficina) $q->where('idOficina', $idOficina);
-                if ($idOficinaNodo) $q->where('idOficinaNodo', $idOficinaNodo);
-                if ($idCompania) $q->where('idCompania', $idCompania);
-                if ($idCompaniaNodo) $q->where('idCompaniaNodo', $idCompaniaNodo);
+        // Filtro por oficina y nodo fijo
+        if ($idOficinaPerspectiva) {
+            $query->whereHas('equipo.oficina', function ($q) use ($idOficinaPerspectiva) {
+                $q->where('idOficinaPerspectiva', $idOficinaPerspectiva)
+                    ->where('idOficinaNodo', 'CYB'); // valor fijo
             });
         }
 
+        // Filtro por descripción del equipo
         if ($equipoDsc) {
             $query->whereHas('equipo', function ($q) use ($equipoDsc) {
                 $q->where('descripcion', 'like', "%$equipoDsc%");
             });
         }
 
+        // Filtro por IP
         if ($ipDsc) {
             $query->whereHas('Ip', function ($q) use ($ipDsc) {
                 $q->where('ip', 'like', "%$ipDsc%");
@@ -241,31 +236,30 @@ class MonitoreoController extends Controller
         ]);
     }
 
+
     public function getEquipos(Request $request)
     {
-        $idOficina = $request->query('idOficina');
-        $idOficinaNodo = $request->query('idOficinaNodo');
-        $idCompania = $request->query('idCompania');
-        $idCompaniaNodo = $request->query('idCompaniaNodo');
+        $idEquipoPerspectiva = $request->query('idEquipoPerspectiva'); // nuevo filtro
         $descripcion = $request->query('descripcion');
         $ipDsc = $request->query('ipDsc');
 
         $query = Equipo::with(['oficina', 'Ips'])
             ->where('flgEstado', '1'); // Solo equipos activos
 
-        if ($idOficina || $idOficinaNodo || $idCompania || $idCompaniaNodo) {
-            $query->whereHas('oficina', function ($q) use ($idOficina, $idOficinaNodo, $idCompania, $idCompaniaNodo) {
-                if ($idOficina) $q->where('idOficina', $idOficina);
-                if ($idOficinaNodo) $q->where('idOficinaNodo', $idOficinaNodo);
-                if ($idCompania) $q->where('idCompania', $idCompania);
-                if ($idCompaniaNodo) $q->where('idCompaniaNodo', $idCompaniaNodo);
+        // Filtro por idEquipoPerspectiva y nodo fijo "CYB"
+        if ($idEquipoPerspectiva) {
+            $query->whereHas('oficina', function ($q) use ($idEquipoPerspectiva) {
+                $q->where('idOficinaPerspectiva', $idEquipoPerspectiva)
+                    ->where('idOficinaNodo', 'CYB'); // valor fijo
             });
         }
 
+        // Filtro por descripción del equipo
         if ($descripcion) {
             $query->where('descripcion', 'like', "%$descripcion%");
         }
 
+        // Filtro por IP
         if ($ipDsc) {
             $query->whereHas('Ips', function ($q) use ($ipDsc) {
                 $q->where('ip', 'like', "%$ipDsc%");
@@ -293,6 +287,7 @@ class MonitoreoController extends Controller
             $resultado[$key]['equipos'][] = [
                 'idEquipo' => $equipo->idEquipo,
                 'idEquipoNodo' => $equipo->idEquipoNodo,
+                'idEquipoPerspectiva' => $equipo->idEquipoPerspectiva,
                 'descripcion' => $equipo->descripcion,
                 'etiqueta' => $equipo->etiqueta ?? '',
                 'ips' => $equipo->Ips->pluck('ip'), // listado de IPs
@@ -305,6 +300,7 @@ class MonitoreoController extends Controller
             'data' => array_values($resultado),
         ]);
     }
+
 
 
     public function MonitoreoLog(Request $request)
@@ -391,129 +387,126 @@ class MonitoreoController extends Controller
 
 
     public function GetEquiposCompania(Request $request)
-{
-    $idOficina = $request->query('idOficina');
-    $idOficinaNodo = $request->query('idOficinaNodo');
-    $idCompania = $request->query('idCompania');
-    $idCompaniaNodo = $request->query('idCompaniaNodo');
-    $descripcion = $request->query('descripcion');
-    $ipDsc = $request->query('ip');
-    $flgStatus = $request->query('flgStatus');
-    $idEquipo = $request->query('idEquipo');
+    {
+        $idEquipoPerspectiva = $request->query('idEquipoPerspectiva'); // filtro por perspectiva
+        $descripcion = $request->query('descripcion');
+        $ipDsc = $request->query('ip');
+        $flgStatus = $request->query('flgStatus');
+        $idEquipo = $request->query('idEquipo');
 
-    $query = Equipo::with([
-        'oficina',
-        'Ips',
-        'monitoreos' => function ($q) use ($flgStatus) {
-            $q->where('flgEstado', '1')
-              ->whereHas('Ip', function ($q2) {
-                  $q2->where('flgEstado', '1');
-              });
+        $query = Equipo::with([
+            'oficina',
+            'Ips',
+            'monitoreos' => function ($q) use ($flgStatus) {
+                $q->where('flgEstado', '1')
+                    ->whereHas('Ip', function ($q2) {
+                        $q2->where('flgEstado', '1');
+                    });
 
-            if ($flgStatus !== null && $flgStatus !== '') {
-                $q->where('flgStatus', $flgStatus);
-            }
-        },
-        'monitoreos.servicio.maeMaestro',
-        'monitoreos.frecuencia',
-        'monitoreos.Ip'
-    ])
-    ->where('flgEstado', '1');
+                if ($flgStatus !== null && $flgStatus !== '') {
+                    $q->where('flgStatus', $flgStatus);
+                }
+            },
+            'monitoreos.servicio.maeMaestro',
+            'monitoreos.frecuencia',
+            'monitoreos.Ip'
+        ])->where('flgEstado', '1');
 
-    if ($idOficina || $idOficinaNodo || $idCompania || $idCompaniaNodo) {
-        $query->whereHas('oficina', function ($q) use ($idOficina, $idOficinaNodo, $idCompania, $idCompaniaNodo) {
-            if ($idOficina) $q->where('idOficina', $idOficina);
-            if ($idOficinaNodo) $q->where('idOficinaNodo', $idOficinaNodo);
-            if ($idCompania) $q->where('idCompania', $idCompania);
-            if ($idCompaniaNodo) $q->where('idCompaniaNodo', $idCompaniaNodo);
-        });
-    }
-
-    if ($descripcion) {
-        $query->where('descripcion', 'like', "%$descripcion%");
-    }
-
-    if ($ipDsc) {
-        $query->whereHas('Ips', function ($q) use ($ipDsc) {
-            $q->where('ip', 'like', "%$ipDsc%");
-        });
-    }
-
-    if ($idEquipo) {
-        $query->where('idEquipo', $idEquipo);
-    }
-
-    $equipos = $query->get();
-
-    $resultado = [];
-
-    foreach ($equipos as $equipo) {
-        $oficina = $equipo->oficina;
-        if (!$oficina) continue;
-
-        $key = $oficina->idOficina . $oficina->idOficinaNodo;
-
-        if (!isset($resultado[$key])) {
-            $resultado[$key] = [
-                'id' => $key,
-                'idOficina' => $oficina->idOficina,
-                'idOficinaNodo' => $oficina->idOficinaNodo,
-                'nombre' => $oficina->nombre ?? '',
-                'equipos' => [],
-            ];
+        // Filtro por idEquipoPerspectiva con nodo fijo "CYB"
+        if ($idEquipoPerspectiva) {
+            $query->whereHas('oficina', function ($q) use ($idEquipoPerspectiva) {
+                $q->where('idOficinaPerspectiva', $idEquipoPerspectiva)
+                    ->where('idOficinaNodo', 'CYB'); // valor fijo
+            });
         }
 
-        $monitoreos = [];
-        foreach ($equipo->monitoreos as $mon) {
-            if ($flgStatus !== null && $flgStatus !== '' && $mon->flgStatus !== $flgStatus) {
-                continue;
+        if ($descripcion) {
+            $query->where('descripcion', 'like', "%$descripcion%");
+        }
+
+        if ($ipDsc) {
+            $query->whereHas('Ips', function ($q) use ($ipDsc) {
+                $q->where('ip', 'like', "%$ipDsc%");
+            });
+        }
+
+        if ($idEquipo) {
+            $query->where('idEquipo', $idEquipo);
+        }
+
+        $equipos = $query->get();
+
+        $resultado = [];
+
+        foreach ($equipos as $equipo) {
+            $oficina = $equipo->oficina;
+            if (!$oficina) continue;
+
+            $key = $oficina->idOficina . $oficina->idOficinaNodo;
+
+            if (!isset($resultado[$key])) {
+                $resultado[$key] = [
+                    'id' => $key,
+                    'idOficina' => $oficina->idOficina,
+                    'idOficinaNodo' => $oficina->idOficinaNodo,
+                    'nombre' => $oficina->nombre ?? '',
+                    'equipos' => [],
+                ];
             }
 
-            $tiempoTranscurrido = \Carbon\Carbon::parse($mon->fechaUltimaVerificacion)
-                ->diff(\Carbon\Carbon::now());
+            $monitoreos = [];
+            foreach ($equipo->monitoreos as $mon) {
+                if ($flgStatus !== null && $flgStatus !== '' && $mon->flgStatus !== $flgStatus) {
+                    continue;
+                }
 
-            $tiempoFormateado = sprintf(
-                '%d:%02d:%02d',
-                $tiempoTranscurrido->days * 24 + $tiempoTranscurrido->h,
-                $tiempoTranscurrido->i,
-                $tiempoTranscurrido->s
-            );
+                $tiempoTranscurrido = \Carbon\Carbon::parse($mon->fechaUltimaVerificacion)
+                    ->diff(\Carbon\Carbon::now());
 
-            $monitoreos[] = [
-                'idMonitoreo' => $mon->idMonitoreo,
-                'idMonitoreoNodo' => $mon->idMonitoreoNodo,
-                'idNodoPerspectiva' => $mon->idNodoPerspectiva,
-                'ip' => $mon->Ip->ip ?? '',
-                'servicio' => $mon->servicio->maeMaestro->nombre ?? '',
-                'frecuencia' => $mon->frecuencia->dscFrecuencia ?? '-',
-                'descripcionMonitoreo' => $mon->dscMonitoreo ?? '',
-                'etiqueta' => $mon->etiqueta ?? '',
-                'flgStatus' => $mon->flgStatus,
-                'minutos' => $mon->minutos ?? 0,
-                'fechaModificacionStatus' => $mon->fechaModificacionStatus,
-                'tiempoTranscurrido' => $tiempoFormateado,
-            ];
+                $tiempoFormateado = sprintf(
+                    '%d:%02d:%02d',
+                    $tiempoTranscurrido->days * 24 + $tiempoTranscurrido->h,
+                    $tiempoTranscurrido->i,
+                    $tiempoTranscurrido->s
+                );
+
+                $monitoreos[] = [
+                    'idMonitoreo' => $mon->idMonitoreo,
+                    'idMonitoreoNodo' => $mon->idMonitoreoNodo,
+                    'idNodoPerspectiva' => $mon->idNodoPerspectiva,
+                    'ip' => $mon->Ip->ip ?? '',
+                    'servicio' => $mon->servicio->maeMaestro->nombre ?? '',
+                    'equipo' => $mon->equipo->descripcion ?? '-',
+                    'frecuencia' => $mon->frecuencia->dscFrecuencia ?? '-',
+                    'descripcionMonitoreo' => $mon->dscMonitoreo ?? '',
+                    'etiqueta' => $mon->etiqueta ?? '',
+                    'flgStatus' => $mon->flgStatus,
+                    'flgEstado' => $mon->flgEstado,
+                    'minutos' => $mon->minutos ?? 0,
+                    'fechaModificacionStatus' => $mon->fechaModificacionStatus,
+                    'tiempoTranscurrido' => $tiempoFormateado,
+                ];
+            }
+
+            if (count($monitoreos) > 0 || ($flgStatus === null || $flgStatus === '')) {
+                $resultado[$key]['equipos'][] = [
+                    'idEquipo' => $equipo->idEquipo,
+                    'idEquipoNodo' => $equipo->idEquipoNodo,
+                    'descripcion' => $equipo->descripcion,
+                    'etiqueta' => $equipo->etiqueta ?? '',
+                    'ips' => $equipo->Ips->pluck('ip'),
+                    'monitoreos' => $monitoreos,
+                ];
+            }
         }
 
-        // Si hay monitoreos o si no hay filtro de flgStatus
-        if (count($monitoreos) > 0 || ($flgStatus === null || $flgStatus === '')) {
-            $resultado[$key]['equipos'][] = [
-                'idEquipo' => $equipo->idEquipo,
-                'idEquipoNodo' => $equipo->idEquipoNodo,
-                'descripcion' => $equipo->descripcion,
-                'etiqueta' => $equipo->etiqueta ?? '',
-                'ips' => $equipo->Ips->pluck('ip'),
-                'monitoreos' => $monitoreos,
-            ];
-        }
+        return response()->json([
+            'estado' => true,
+            'mensaje' => 'Equipos y monitoreos obtenidos correctamente',
+            'data' => array_values($resultado),
+        ]);
     }
 
-    return response()->json([
-        'estado' => true,
-        'mensaje' => 'Equipos y monitoreos obtenidos correctamente',
-        'data' => array_values($resultado),
-    ]);
-}
 
 
 
@@ -562,5 +555,17 @@ class MonitoreoController extends Controller
             'mensaje' => 'Oficinas obtenidas correctamente',
             'data' => $resultado,
         ]);
+    }
+
+    //Reporte
+    public function exportReportMonitoreo(Request $request)
+    {
+        $idOficinaPerspectiva = $request->query('idOficinaPerspectiva');
+        $fechaHora = now()->format('d-m-Y_H-i');
+
+        return \Maatwebsite\Excel\Facades\Excel::download(
+            new MonitoreoReporte($idOficinaPerspectiva),
+            "reporte-monitoreo-compania-{$idOficinaPerspectiva}-{$fechaHora}.xlsx"
+        );
     }
 }
