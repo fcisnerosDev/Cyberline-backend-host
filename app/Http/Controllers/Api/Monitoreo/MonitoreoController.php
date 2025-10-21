@@ -51,14 +51,18 @@ class MonitoreoController extends Controller
         if ($idOficinaPerspectiva) {
             $query->whereHas('equipo.oficina', function ($q) use ($idOficinaPerspectiva) {
                 $q->where('idOficinaPerspectiva', $idOficinaPerspectiva)
-                    ->where('idOficinaNodo', 'CYB'); // valor fijo
+                    ->where('idOficinaNodo', 'CYB');
+                // valor fijo
             });
         }
 
         // Filtro por descripción del equipo
         if ($equipoDsc) {
-            $query->whereHas('equipo', function ($q) use ($equipoDsc) {
-                $q->where('descripcion', 'like', "%$equipoDsc%");
+            $query->whereHas('equipo', function ($q) use ($equipoDsc, $idOficinaPerspectiva) {
+                $q->where('descripcion', 'like', "%$equipoDsc%")
+                    ->whereHas('oficina', function ($q2) use ($idOficinaPerspectiva) {
+                        $q2->where('idOficinaNodo', $idOficinaPerspectiva);
+                    });
             });
         }
 
@@ -167,8 +171,11 @@ class MonitoreoController extends Controller
 
         // Filtro por descripción del equipo
         if ($equipoDsc) {
-            $query->whereHas('equipo', function ($q) use ($equipoDsc) {
-                $q->where('descripcion', 'like', "%$equipoDsc%");
+            $query->whereHas('equipo', function ($q) use ($equipoDsc, $idOficinaPerspectiva) {
+                $q->where('descripcion', 'like', "%$equipoDsc%")
+                    ->whereHas('oficina', function ($q2) use ($idOficinaPerspectiva) {
+                        $q2->where('idOficinaNodo', $idOficinaPerspectiva);
+                    });
             });
         }
 
