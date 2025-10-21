@@ -1,8 +1,10 @@
 <?php
+
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Models\UserCyberV6;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Spatie\Permission\Models\Permission;
@@ -78,25 +80,29 @@ class UserController extends Controller
 
     public function indexPagination(Request $request)
     {
-        $username = $request->username;
-        $nombres = $request->nombres;
+        $nombre = $request->nombre;
         $apellidos = $request->apellidos;
+        $usuario = $request->usuario;
         $roleId = $request->role;
 
-        $query = User::with('roles', 'roles.permissions')->orderBy('id', 'asc');
+        $query = UserCyberV6::with('roles', 'roles.permissions')
+            ->where('idPersonaNodo', 'CYB')
+            ->where('idPersonaPerspectiva', 'CYB')
+             ->where('flgEstado', '1')
+            ->orderBy('idPersona', 'asc');
 
-        if (!empty($username)) {
-            $query->where('username', 'like', '%' . $username . '%');
-        }
-        if (!empty($nombres)) {
-            $query->where('firstname', 'like', '%' . $nombres . '%');
+        if (!empty($nombre)) {
+            $query->where('nombre', 'like', '%' . $nombre . '%');
         }
         if (!empty($apellidos)) {
-            $query->where('lastname', 'like', '%' . $apellidos . '%');
+            $query->where('apellidos', 'like', '%' . $apellidos . '%');
+        }
+        if (!empty($usuario)) {
+            $query->where('usuario', 'like', '%' . $usuario . '%');
         }
         if (!empty($roleId)) {
             $query->whereHas('roles', function ($query) use ($roleId) {
-                $query->where('id', $roleId);
+                $query->where('id', $roleId); // id de la tabla roles
             });
         }
 

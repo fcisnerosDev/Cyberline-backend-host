@@ -34,7 +34,7 @@ Route::group(['middleware' => ['auth:sanctum']], function () {
         Route::group(['middleware' => ['role:Administrador']], function () {
             // Route::get('/users/pagination', 'indexPagination')->name('user.pagination');
             // Route::post('/user/register', 'StoreUser')->name('user.store');
-            // Route::get('/user/{id}', 'getUser')->name('user.get');
+            Route::get('/user/{id}', 'getUser')->name('user.get');
             // Route::put('/user/{id}', 'updateUser')->name('user.update');
             // Route::delete('/user/delete/{id}', 'deleteUser')->name('user.delete');
         });

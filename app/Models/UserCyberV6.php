@@ -2,8 +2,6 @@
 
 namespace App\Models;
 
-use Illuminate\Contracts\Auth\MustVerifyEmail;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
@@ -12,31 +10,31 @@ use Tymon\JWTAuth\Contracts\JWTSubject;
 
 class UserCyberV6 extends Authenticatable implements JWTSubject
 {
-    use HasApiTokens, HasFactory, Notifiable, HasRoles;
+    use HasApiTokens, Notifiable, HasRoles;
 
-    protected $table = 'maePersona'; // Nombre de la tabla
-    protected $primaryKey = 'idPersona'; // Especifica la clave primaria
-    public $incrementing = false; // Si no es auto-incremental
-    protected $keyType = 'string'; // Tipo de la clave primaria (string o int)
- // Desactivar los timestamps
- public $timestamps = false;
+    protected $table = 'maePersona';
+    protected $primaryKey = 'idPersona';
+    public $incrementing = false;
+    protected $keyType = 'string';
+    public $timestamps = false;
+
     protected $fillable = [
-        'nombre',
+        'idPersonaNodo',
+        'idPersonaPerspectiva',
         'usuario',
         'password',
+        'nombre',
+        'apellidos',
         'intentos_fallidos',
         'bloqueado',
     ];
 
-    protected $hidden = [
-        'password',
-        'remember_token',
-    ];
+    protected $hidden = ['password', 'remember_token'];
 
-    protected $casts = [
-        'email_verified_at' => 'datetime',
-    ];
+    // Indicar el guard por defecto para Spatie
+    protected $guard_name = 'sanctum';
 
+    // JWT
     public function getJWTIdentifier()
     {
         return $this->getKey();
@@ -45,5 +43,11 @@ class UserCyberV6 extends Authenticatable implements JWTSubject
     public function getJWTCustomClaims()
     {
         return [];
+    }
+
+    // Laravel Auth (login por usuario en lugar de id)
+    public function getAuthIdentifierName()
+    {
+        return 'usuario';
     }
 }

@@ -26,6 +26,8 @@ return [
 
         'role' => Spatie\Permission\Models\Role::class,
 
+         'user' => App\Models\UserCyberV6::class, 
+
     ],
 
     'table_names' => [
