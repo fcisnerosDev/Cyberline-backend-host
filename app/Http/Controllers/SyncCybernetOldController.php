@@ -174,14 +174,20 @@ class SyncCybernetOldController extends Controller
                     // Lógica flgSolucionado
                     if ($fechaHijo->gt($fechaPadre)) {
                         if (isset($item['flgCondicionSolucionado']) && $item['flgCondicionSolucionado'] === '1') {
-                            $flgSolucionado = '1'; // Mantener como 1 si está marcado
+                            $flgSolucionado = '1';
                         } else {
-                            $flgSolucionado = ($item['flgStatus'] === 'C') ? '0' : ($item['flgSolucionado'] ?? '0');
+                            $flgSolucionado = ($item['flgStatus'] === 'C')
+                                ? '0'
+                                : (isset($item['flgSolucionado']) && $item['flgSolucionado'] !== '' ? $item['flgSolucionado'] : '0');
                         }
                     } else {
-                        // No sobrescribir si el padre tiene datos más recientes
-                        $flgSolucionado = $registroPadre->flgSolucionado ?? '0';
+                        $flgSolucionado = isset($registroPadre->flgSolucionado) && $registroPadre->flgSolucionado !== ''
+                            ? $registroPadre->flgSolucionado
+                            : '0';
                     }
+
+                    // Forzar que sea siempre '0' o '1'
+                    $flgSolucionado = ($flgSolucionado === '1') ? '1' : '0';
 
                     // Actualizar o insertar registro
                     DB::table('monMonitoreo')->updateOrInsert(
@@ -193,7 +199,7 @@ class SyncCybernetOldController extends Controller
                             'flgSolucionado'          => $flgSolucionado,
                             'fechaUltimaVerificacion' => $item['fechaUltimaVerificacion'] ?? now(),
                             'fechaUltimoCambio'       => $item['fechaUltimoCambio'] ?? now(),
-                            'fechaSyncPadre'          => now(), // Fecha de actualización del padre
+                            'fechaSyncPadre'          => now(),
                             'flgSyncHijo'             => '1',
                         ]
                     );
@@ -224,6 +230,7 @@ class SyncCybernetOldController extends Controller
             "updated_records" => $updatedRecords,
         ]);
     }
+
 
 
     // public function UpdateMonitoreoData()
