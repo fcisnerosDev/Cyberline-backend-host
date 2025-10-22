@@ -150,84 +150,82 @@ class SyncCybernetOldController extends Controller
                 continue;
             }
 
-            if ($response->successful()) {
-                $data = $response->json();
-
-                DB::statement('SET @DISABLE_TRIGGER = 1;');
-
-                foreach ($data['data'] as $item) {
-                    // Limpiar fechas
-                    foreach ($item as $key => $value) {
-                        if (Str::startsWith($key, 'fecha')) {
-                            $item[$key] = $this->limpiarFecha($value);
-                        }
-                    }
-
-                    // Traer registro actual del padre
-                    $registroPadre = DB::table('monMonitoreo')
-                        ->where('idMonitoreo', $item['idMonitoreo'])
-                        ->first();
-
-                    $fechaHijo = isset($item['fechaSyncHijo']) ? \Carbon\Carbon::parse($item['fechaSyncHijo']) : now();
-                    $fechaPadre = isset($registroPadre->fechaSyncPadre) ? \Carbon\Carbon::parse($registroPadre->fechaSyncPadre) : now();
-
-                    // Lógica flgSolucionado
-                    if ($fechaHijo->gt($fechaPadre)) {
-                        // Si el registro hijo es más reciente
-                        if ($item['flgStatus'] === 'C' && (!isset($item['flgCondicionSolucionado']) || $item['flgCondicionSolucionado'] !== '1')) {
-                            // Solo en crítico y si no hay condición de solucionado, forzar a 0
-                            $flgSolucionado = '0';
-                        } else {
-                            // Mantener el valor actual del hijo si ya estaba en 1 o no es crítico
-                            $flgSolucionado = isset($item['flgSolucionado']) && $item['flgSolucionado'] !== ''
-                                ? $item['flgSolucionado']
-                                : '0';
-                        }
-                    } else {
-                        // Padre tiene datos más recientes, mantener valor actual
-                        $flgSolucionado = isset($registroPadre->flgSolucionado) && $registroPadre->flgSolucionado !== ''
-                            ? $registroPadre->flgSolucionado
-                            : '0';
-                    }
-
-                    // Forzar que sea siempre '0' o '1'
-                    $flgSolucionado = ($flgSolucionado === '1') ? '1' : '0';
-
-                    // Actualizar o insertar registro
-                    DB::table('monMonitoreo')->updateOrInsert(
-                        ['idMonitoreo' => $item['idMonitoreo']],
-                        [
-                            'idNodoPerspectiva'       => $item['idNodoPerspectiva'],
-                            'flgStatus'               => $item['flgStatus'],
-                            'flgEstado'               => $item['flgEstado'],
-                            'flgSolucionado'          => $flgSolucionado,
-                            'fechaUltimaVerificacion' => $item['fechaUltimaVerificacion'] ?? now(),
-                            'fechaUltimoCambio'       => $item['fechaUltimoCambio'] ?? now(),
-                            'fechaSyncPadre'          => now(),
-                            'flgSyncHijo'             => '1',
-                            'fechaSyncHijo'               => $item['fechaSyncHijo'],
-                        ]
-                    );
-
-                    $updatedRecords[] = [
-                        "idNodo" => $sysNodo->idNodo,
-                        "idMonitoreo" => $item['idMonitoreo'],
-                        "flgStatus" => $item['flgStatus'],
-                        "flgEstado" => $item['flgEstado'],
-                        "flgSolucionado" => $flgSolucionado,
-                        'fechaSyncHijo' => $item['fechaSyncHijo'],
-                        "fechaUltimaVerificacion" => $item['fechaUltimaVerificacion'],
-                        "fechaUltimoCambio" => $item['fechaUltimoCambio']
-                    ];
-                }
-
-                DB::statement('SET @DISABLE_TRIGGER = NULL;');
-            } else {
+            if (!$response->successful()) {
                 return response()->json([
                     "status" => "error",
                     "message" => "No se pudo obtener los datos de $url"
                 ], 500);
             }
+
+            $data = $response->json();
+            DB::statement('SET @DISABLE_TRIGGER = 1;');
+
+            foreach ($data['data'] as $item) {
+                // Limpiar fechas
+                foreach ($item as $key => $value) {
+                    if (Str::startsWith($key, 'fecha')) {
+                        $item[$key] = $this->limpiarFecha($value);
+                    }
+                }
+
+                $registroPadre = DB::table('monMonitoreo')
+                    ->where('idMonitoreo', $item['idMonitoreo'])
+                    ->first();
+
+                $fechaHijo = isset($item['fechaSyncHijo']) ? \Carbon\Carbon::parse($item['fechaSyncHijo']) : now();
+                $fechaPadre = isset($registroPadre->fechaSyncPadre) ? \Carbon\Carbon::parse($registroPadre->fechaSyncPadre) : now();
+
+                //  Lógica de flgSolucionado
+                if ($fechaHijo->gt($fechaPadre)) {
+                    // Hijo tiene info más nueva
+                    if ($item['flgStatus'] === 'C' && (!isset($item['flgCondicionSolucionado']) || $item['flgCondicionSolucionado'] !== '1')) {
+                        $flgSolucionado = '0'; // Crítico sin resolver
+                    } else {
+                        $flgSolucionado = isset($item['flgSolucionado']) ? $item['flgSolucionado'] : '0';
+                    }
+                } else {
+                    // Padre más reciente — mantiene su flgSolucionado
+                    $flgSolucionado = isset($registroPadre->flgSolucionado) ? $registroPadre->flgSolucionado : '0';
+                }
+
+                // Asegurar consistencia de flgSolucionado
+                $flgSolucionado = ($flgSolucionado === '1') ? '1' : '0';
+
+                // Control temporal: padre nunca < hijo
+                if ($fechaPadre->lessThan($fechaHijo)) {
+                    $fechaSyncPadre = $fechaHijo->copy()->addSeconds(1);
+                } else {
+                    $fechaSyncPadre = now();
+                }
+
+                // Actualizar o insertar registro
+                DB::table('monMonitoreo')->updateOrInsert(
+                    ['idMonitoreo' => $item['idMonitoreo']],
+                    [
+                        'idNodoPerspectiva'       => $item['idNodoPerspectiva'],
+                        'flgStatus'               => $item['flgStatus'],
+                        'flgEstado'               => $item['flgEstado'],
+                        'flgSolucionado'          => $flgSolucionado,
+                        'fechaUltimaVerificacion' => $item['fechaUltimaVerificacion'] ?? now(),
+                        'fechaUltimoCambio'       => $item['fechaUltimoCambio'] ?? now(),
+                        'fechaSyncPadre'          => $fechaSyncPadre,
+                        'flgSyncHijo'             => '1',
+                        'fechaSyncHijo'           => $item['fechaSyncHijo'],
+                    ]
+                );
+
+                $updatedRecords[] = [
+                    "idNodo" => $sysNodo->idNodo,
+                    "idMonitoreo" => $item['idMonitoreo'],
+                    "flgStatus" => $item['flgStatus'],
+                    "flgEstado" => $item['flgEstado'],
+                    "flgSolucionado" => $flgSolucionado,
+                    "fechaSyncPadre" => $fechaSyncPadre,
+                    "fechaSyncHijo" => $item['fechaSyncHijo'],
+                ];
+            }
+
+            DB::statement('SET @DISABLE_TRIGGER = NULL;');
         }
 
         return response()->json([
@@ -236,6 +234,7 @@ class SyncCybernetOldController extends Controller
             "updated_records" => $updatedRecords,
         ]);
     }
+
 
 
 
