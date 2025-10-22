@@ -173,14 +173,18 @@ class SyncCybernetOldController extends Controller
 
                     // Lógica flgSolucionado
                     if ($fechaHijo->gt($fechaPadre)) {
-                        if (isset($item['flgCondicionSolucionado']) && $item['flgCondicionSolucionado'] === '1') {
-                            $flgSolucionado = '1';
+                        // Si el registro hijo es más reciente
+                        if ($item['flgStatus'] === 'C' && (!isset($item['flgCondicionSolucionado']) || $item['flgCondicionSolucionado'] !== '1')) {
+                            // Solo en crítico y si no hay condición de solucionado, forzar a 0
+                            $flgSolucionado = '0';
                         } else {
-                            $flgSolucionado = ($item['flgStatus'] === 'C')
-                                ? '0'
-                                : (isset($item['flgSolucionado']) && $item['flgSolucionado'] !== '' ? $item['flgSolucionado'] : '0');
+                            // Mantener el valor actual del hijo si ya estaba en 1 o no es crítico
+                            $flgSolucionado = isset($item['flgSolucionado']) && $item['flgSolucionado'] !== ''
+                                ? $item['flgSolucionado']
+                                : '0';
                         }
                     } else {
+                        // Padre tiene datos más recientes, mantener valor actual
                         $flgSolucionado = isset($registroPadre->flgSolucionado) && $registroPadre->flgSolucionado !== ''
                             ? $registroPadre->flgSolucionado
                             : '0';
@@ -201,6 +205,7 @@ class SyncCybernetOldController extends Controller
                             'fechaUltimoCambio'       => $item['fechaUltimoCambio'] ?? now(),
                             'fechaSyncPadre'          => now(),
                             'flgSyncHijo'             => '1',
+                            'fechaSyncHijo'               => $item['fechaSyncHijo'],
                         ]
                     );
 
@@ -210,6 +215,7 @@ class SyncCybernetOldController extends Controller
                         "flgStatus" => $item['flgStatus'],
                         "flgEstado" => $item['flgEstado'],
                         "flgSolucionado" => $flgSolucionado,
+                        'fechaSyncHijo' => $item['fechaSyncHijo'],
                         "fechaUltimaVerificacion" => $item['fechaUltimaVerificacion'],
                         "fechaUltimoCambio" => $item['fechaUltimoCambio']
                     ];
