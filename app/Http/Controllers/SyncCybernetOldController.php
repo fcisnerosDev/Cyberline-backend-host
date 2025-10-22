@@ -20,12 +20,118 @@ use Illuminate\Support\Facades\Redis;
 
 class SyncCybernetOldController extends Controller
 {
+    // public function UpdateMonitoreoData()
+    // {
+    //     $idNodos = $this->getValidNodoIdForCybernetPrimary();
+
+    //     if ($idNodos->isEmpty()) {
+    //         echo "No se encontraron nodos válidos para la sincronización." . PHP_EOL;
+    //         return response()->json([
+    //             "status" => "error",
+    //             "message" => "No se encontraron nodos válidos para la sincronización."
+    //         ], 400);
+    //     }
+
+    //     $sysNodos = SysNodo::whereIn('idNodo', $idNodos)->get();
+    //     $updatedRecords = [];
+
+    //     foreach ($sysNodos as $sysNodo) {
+    //         // echo "------" . PHP_EOL;
+    //         // echo "Nodo: {$sysNodo->idNodo}" . PHP_EOL;
+    //         // echo "urlWs original: {$sysNodo->urlWs}" . PHP_EOL;
+
+    //         $url = rtrim($sysNodo->urlWs, '/') . "/sync.php";
+    //         // echo "URL construida: $url" . PHP_EOL;
+
+    //         try {
+    //             $response = Http::get($url);
+    //         } catch (\Exception $e) {
+    //             // echo "Error en la solicitud HTTP: " . $e->getMessage() . PHP_EOL;
+    //             continue;
+    //         }
+
+    //         if ($response->successful()) {
+    //             // echo "Respuesta recibida correctamente." . PHP_EOL;
+    //             $data = $response->json();
+
+    //             DB::statement('SET @DISABLE_TRIGGER = 1;');
+
+    //             foreach ($data['data'] as $item) {
+    //                 foreach ($item as $key => $value) {
+    //                     if (Str::startsWith($key, 'fecha')) {
+    //                         $item[$key] = $this->limpiarFecha($value);
+    //                     }
+    //                 }
+    //                 if ($item['flgStatus'] === 'C') {
+    //                     // Si está en "C" (crítico o cerrado)
+    //                     if (isset($item['flgCondicionSolucionado']) && $item['flgCondicionSolucionado'] === '1') {
+    //                         // Mantiene el valor actual, no se cambia
+    //                         $flgSolucionado = isset($item['flgSolucionado']) ? (string)$item['flgSolucionado'] : '0';
+    //                     } else {
+    //                         // Caso normal: se fuerza a 0
+    //                         $flgSolucionado = '0';
+    //                     }
+    //                 } else {
+    //                     // Si no está en "C", se conserva la lógica normal
+    //                     if (isset($item['flgSolucionado']) && $item['flgSolucionado'] !== '') {
+    //                         $flgSolucionado = (string)$item['flgSolucionado'];
+    //                     } else {
+    //                         $flgSolucionado = '0';
+    //                     }
+    //                 }
+
+
+    //                 DB::table('monMonitoreo')->updateOrInsert(
+    //                     ['idMonitoreo' => $item['idMonitoreo']],
+    //                     [
+    //                         'idNodoPerspectiva'        => $item['idNodoPerspectiva'],
+    //                         'flgStatus'                => $item['flgStatus'],
+    //                         'flgEstado'                => $item['flgEstado'],
+    //                         'flgSolucionado'           => $flgSolucionado,
+    //                         'fechaUltimaVerificacion' => $item['fechaUltimaVerificacion'] ?? now(),
+    //                         'fechaUltimoCambio' => $item['fechaUltimoCambio'] ?? now(),
+
+    //                         'flgSyncHijo'              => '1',
+    //                     ]
+    //                 );
+
+    //                 $updatedRecords[] = [
+    //                     "idNodo"            => $sysNodo->idNodo,
+    //                     "idMonitoreo"       => $item['idMonitoreo'],
+    //                     "idNodoPerspectiva" => $item['idNodoPerspectiva'],
+    //                     "flgStatus"         => $item['flgStatus'],
+    //                     'fechaUltimaVerificacion' => $item['fechaUltimaVerificacion'],
+    //                     'fechaUltimoCambio'       => $item['fechaUltimoCambio'],
+    //                     'flgSolucionado'           => $item['flgSolucionado'],
+    //                     "flgEstado"         => $item['flgEstado']
+    //                 ];
+    //             }
+
+    //             DB::statement('SET @DISABLE_TRIGGER = NULL;');
+    //         } else {
+    //             // echo "Fallo al obtener datos de $url - Código HTTP: " . $response->status() . PHP_EOL;
+    //             return response()->json([
+    //                 "status"  => "error",
+    //                 "message" => "No se pudo obtener los datos de $url"
+    //             ], 500);
+    //         }
+    //     }
+
+    //     // echo "------" . PHP_EOL;
+    //     // echo "Total de registros actualizados: " . count($updatedRecords) . PHP_EOL;
+
+    //     return response()->json([
+    //         "status"          => "success",
+    //         "message"         => "Datos sincronizados correctamente.",
+    //         "updated_records" => $updatedRecords,
+    //     ]);
+    // }
+
     public function UpdateMonitoreoData()
     {
         $idNodos = $this->getValidNodoIdForCybernetPrimary();
 
         if ($idNodos->isEmpty()) {
-            echo "No se encontraron nodos válidos para la sincronización." . PHP_EOL;
             return response()->json([
                 "status" => "error",
                 "message" => "No se encontraron nodos válidos para la sincronización."
@@ -36,93 +142,85 @@ class SyncCybernetOldController extends Controller
         $updatedRecords = [];
 
         foreach ($sysNodos as $sysNodo) {
-            // echo "------" . PHP_EOL;
-            // echo "Nodo: {$sysNodo->idNodo}" . PHP_EOL;
-            // echo "urlWs original: {$sysNodo->urlWs}" . PHP_EOL;
-
             $url = rtrim($sysNodo->urlWs, '/') . "/sync.php";
-            // echo "URL construida: $url" . PHP_EOL;
 
             try {
                 $response = Http::get($url);
             } catch (\Exception $e) {
-                // echo "Error en la solicitud HTTP: " . $e->getMessage() . PHP_EOL;
                 continue;
             }
 
             if ($response->successful()) {
-                // echo "Respuesta recibida correctamente." . PHP_EOL;
                 $data = $response->json();
 
                 DB::statement('SET @DISABLE_TRIGGER = 1;');
 
                 foreach ($data['data'] as $item) {
+                    // Limpiar fechas
                     foreach ($item as $key => $value) {
                         if (Str::startsWith($key, 'fecha')) {
                             $item[$key] = $this->limpiarFecha($value);
                         }
                     }
-                    if ($item['flgStatus'] === 'C') {
-                        // Si está en "C" (crítico o cerrado)
+
+                    // Traer registro actual del padre
+                    $registroPadre = DB::table('monMonitoreo')
+                        ->where('idMonitoreo', $item['idMonitoreo'])
+                        ->first();
+
+                    $fechaHijo = isset($item['fechaSyncHijo']) ? \Carbon\Carbon::parse($item['fechaSyncHijo']) : now();
+                    $fechaPadre = isset($registroPadre->fechaSyncPadre) ? \Carbon\Carbon::parse($registroPadre->fechaSyncPadre) : now();
+
+                    // Lógica flgSolucionado
+                    if ($fechaHijo->gt($fechaPadre)) {
                         if (isset($item['flgCondicionSolucionado']) && $item['flgCondicionSolucionado'] === '1') {
-                            // Mantiene el valor actual, no se cambia
-                            $flgSolucionado = isset($item['flgSolucionado']) ? (string)$item['flgSolucionado'] : '0';
+                            $flgSolucionado = '1'; // Mantener como 1 si está marcado
                         } else {
-                            // Caso normal: se fuerza a 0
-                            $flgSolucionado = '0';
+                            $flgSolucionado = ($item['flgStatus'] === 'C') ? '0' : ($item['flgSolucionado'] ?? '0');
                         }
                     } else {
-                        // Si no está en "C", se conserva la lógica normal
-                        if (isset($item['flgSolucionado']) && $item['flgSolucionado'] !== '') {
-                            $flgSolucionado = (string)$item['flgSolucionado'];
-                        } else {
-                            $flgSolucionado = '0';
-                        }
+                        // No sobrescribir si el padre tiene datos más recientes
+                        $flgSolucionado = $registroPadre->flgSolucionado ?? '0';
                     }
 
-
+                    // Actualizar o insertar registro
                     DB::table('monMonitoreo')->updateOrInsert(
                         ['idMonitoreo' => $item['idMonitoreo']],
                         [
-                            'idNodoPerspectiva'        => $item['idNodoPerspectiva'],
-                            'flgStatus'                => $item['flgStatus'],
-                            'flgEstado'                => $item['flgEstado'],
-                            'flgSolucionado'           => $flgSolucionado,
+                            'idNodoPerspectiva'       => $item['idNodoPerspectiva'],
+                            'flgStatus'               => $item['flgStatus'],
+                            'flgEstado'               => $item['flgEstado'],
+                            'flgSolucionado'          => $flgSolucionado,
                             'fechaUltimaVerificacion' => $item['fechaUltimaVerificacion'] ?? now(),
-                            'fechaUltimoCambio' => $item['fechaUltimoCambio'] ?? now(),
-
-                            'flgSyncHijo'              => '1',
+                            'fechaUltimoCambio'       => $item['fechaUltimoCambio'] ?? now(),
+                            'fechaSyncPadre'          => now(), // Fecha de actualización del padre
+                            'flgSyncHijo'             => '1',
                         ]
                     );
 
                     $updatedRecords[] = [
-                        "idNodo"            => $sysNodo->idNodo,
-                        "idMonitoreo"       => $item['idMonitoreo'],
-                        "idNodoPerspectiva" => $item['idNodoPerspectiva'],
-                        "flgStatus"         => $item['flgStatus'],
-                        'fechaUltimaVerificacion' => $item['fechaUltimaVerificacion'],
-                        'fechaUltimoCambio'       => $item['fechaUltimoCambio'],
-                        'flgSolucionado'           => $item['flgSolucionado'],
-                        "flgEstado"         => $item['flgEstado']
+                        "idNodo" => $sysNodo->idNodo,
+                        "idMonitoreo" => $item['idMonitoreo'],
+                        "flgStatus" => $item['flgStatus'],
+                        "flgEstado" => $item['flgEstado'],
+                        "flgSolucionado" => $flgSolucionado,
+                        "fechaUltimaVerificacion" => $item['fechaUltimaVerificacion'],
+                        "fechaUltimoCambio" => $item['fechaUltimoCambio']
                     ];
                 }
 
                 DB::statement('SET @DISABLE_TRIGGER = NULL;');
             } else {
-                // echo "Fallo al obtener datos de $url - Código HTTP: " . $response->status() . PHP_EOL;
                 return response()->json([
-                    "status"  => "error",
+                    "status" => "error",
                     "message" => "No se pudo obtener los datos de $url"
                 ], 500);
             }
         }
 
-        // echo "------" . PHP_EOL;
-        // echo "Total de registros actualizados: " . count($updatedRecords) . PHP_EOL;
-
         return response()->json([
-            "status"          => "success",
-            "message"         => "Datos sincronizados correctamente.",
+            "status" => "success",
+            "message" => "Datos sincronizados correctamente.",
             "updated_records" => $updatedRecords,
         ]);
     }
