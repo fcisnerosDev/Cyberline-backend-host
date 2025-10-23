@@ -118,7 +118,7 @@ class SyncCybernetOldController extends Controller
                         'fechaActivacion'           => $item['fechaActivacion'] ?? null,
                         'fechaDesactivacion'        => $item['fechaDesactivacion'] ?? null,
                         'flgStatus'                 => $item['flgStatus'] ?? '0',
-                        'flgStatusControl'          => $item['flgStatusControl'] ?? '0',
+                        'flgStatusControl'          => !empty($item['flgStatusControl']) ? $item['flgStatusControl'] : '0',
                         'flgCondicionSolucionado'   => $item['flgCondicionSolucionado'] ?? '0',
                         'flgOcultarMonitoreo'       => $item['flgOcultarMonitoreo'] ?? '0',
                         'flgSonido'                 => !empty($item['flgSonido']) ? $item['flgSonido'] : '0',
