@@ -53,14 +53,14 @@ class SyncCybernetOldController extends Controller
             DB::statement('SET @DISABLE_TRIGGER = 1;');
 
             foreach ($data['data'] as $item) {
-                // Limpiar fechas inválidas
+                // 🔹 Limpieza de fechas inválidas
                 foreach ($item as $key => $value) {
                     if (Str::startsWith($key, 'fecha')) {
                         $item[$key] = $this->limpiarFecha($value);
                     }
                 }
 
-                // Buscar registro existente
+                // 🔹 Buscar registro existente
                 $registroPadre = DB::table('monMonitoreo')
                     ->where('idMonitoreo', $item['idMonitoreo'])
                     ->orWhere(function ($q) use ($item) {
@@ -71,22 +71,23 @@ class SyncCybernetOldController extends Controller
                     })
                     ->first();
 
-                // Mantener flgSolucionado en 1 si ya estaba resuelto
-                $flgSolucionado = (string)($item['flgSolucionado'] ?? '0');
-                if ($registroPadre && $registroPadre->flgSolucionado === '1') {
-                    $flgSolucionado = '1';
+                // 🔹 Mantener flgSolucionado = 1 si ya estaba resuelto
+                $flgSolucionado = $this->limpiarFlg($item['flgSolucionado'] ?? 0);
+                if ($registroPadre && $registroPadre->flgSolucionado === 1) {
+                    $flgSolucionado = 1;
                 }
 
-                // Manejar coherencia de fechas de sincronización
+                // 🔹 Manejo de fechas de sincronización coherentes
                 $fechaSyncHijo = $this->limpiarFecha($item['fechaSyncHijo'] ?? null)
                     ? \Carbon\Carbon::parse($item['fechaSyncHijo'])
                     : now();
                 $fechaSyncPadre = now();
+
                 if ($fechaSyncPadre->lessThanOrEqualTo($fechaSyncHijo)) {
                     $fechaSyncPadre = $fechaSyncHijo->copy()->addSeconds(2);
                 }
 
-                // Datos preparados
+                // 🔹 Preparar datos para insertar/actualizar
                 $datos = [
                     'idNodoPerspectiva'         => $item['idNodoPerspectiva'] ?? null,
                     'idSync'                    => $item['idSync'] ?? null,
@@ -105,16 +106,18 @@ class SyncCybernetOldController extends Controller
                     'idUsuarioNodo'             => $item['idUsuarioNodo'] ?? null,
                     'dscMonitoreo'              => $item['dscMonitoreo'] ?? null,
                     'etiqueta'                  => $item['etiqueta'] ?? null,
-                    'numReintentos'             => $item['numReintentos'] ?? 0,
+                    'numReintentos'             => (int)($item['numReintentos'] ?? 0),
                     'paramametroScript'         => $item['paramametroScript'] ?? null,
                     'paramNumPort'              => $item['paramNumPort'] ?? null,
-                    'paramNumPackets'           => $item['paramNumPackets'] ?? null,
-                    'paramTimeout'              => $item['paramTimeout'] ?? null,
-                    'paramWarningUmbral'        => $item['paramWarningUmbral'] ?? null,
-                    'paramCriticalUmbral'       => $item['paramCriticalUmbral'] ?? null,
+                    'paramNumPackets'           => (int)($item['paramNumPackets'] ?? 0),
+                    'paramTimeout'              => (int)($item['paramTimeout'] ?? 0),
+                    'paramWarningUmbral'        => (float)($item['paramWarningUmbral'] ?? 0),
+                    'paramCriticalUmbral'       => (float)($item['paramCriticalUmbral'] ?? 0),
                     'anotacion'                 => $item['anotacion'] ?? null,
                     'cuentasNotificacion'       => $item['cuentasNotificacion'] ?? null,
-                    'intervaloNotificacion'     => $item['intervaloNotificacion'] ?? null,
+                    'intervaloNotificacion'     => (int)($item['intervaloNotificacion'] ?? 0),
+
+                    //  Fechas (ya limpiadas)
                     'fechaUltimaVerificacion'   => $item['fechaUltimaVerificacion'] ?? null,
                     'fechaUltimoCambio'         => $item['fechaUltimoCambio'] ?? null,
                     'fechaUltimaNotificacion'   => $item['fechaUltimaNotificacion'] ?? null,
@@ -128,8 +131,7 @@ class SyncCybernetOldController extends Controller
                     'fechaSyncHijo'             => $fechaSyncHijo,
                     'fechaSyncPadre'            => $fechaSyncPadre,
 
-                   
-                    // Flags numéricos forzados (0 o 1)
+                    //  Flags numéricos validados
                     'flgMonitoreoIp'            => $this->limpiarFlg($item['flgMonitoreoIp'] ?? 0),
                     'flgRevision'               => $this->limpiarFlg($item['flgRevision'] ?? 0),
                     'flgStatus'                 => $this->limpiarFlg($item['flgStatus'] ?? 0),
@@ -137,17 +139,20 @@ class SyncCybernetOldController extends Controller
                     'flgCondicionSolucionado'   => $this->limpiarFlg($item['flgCondicionSolucionado'] ?? 0),
                     'flgOcultarMonitoreo'       => $this->limpiarFlg($item['flgOcultarMonitoreo'] ?? 0),
                     'flgSonido'                 => $this->limpiarFlg($item['flgSonido'] ?? 0),
-                    'flgSolucionado'            => $this->limpiarFlg($flgSolucionado),
+                    'flgSolucionado'            => $flgSolucionado,
                     'flgEstado'                 => $this->limpiarFlg($item['flgEstado'] ?? 0),
                     'flgActivacionAutomatica'   => $this->limpiarFlg($item['flgActivacionAutomatica'] ?? 0),
                     'flgSync'                   => $this->limpiarFlg($item['flgSync'] ?? 0),
                     'flgSyncHijo'               => 1,
                     'flgSyncPadre'              => 1,
                     'temporal'                  => $this->limpiarFlg($item['temporal'] ?? 0),
+
+                    //  Contadores
                     'cantidad_alertas'          => (int)($item['cantidad_alertas'] ?? 0),
                     'porcentaje_alertas'        => (float)($item['porcentaje_alertas'] ?? 0),
                 ];
 
+                //  Insertar o actualizar
                 if ($registroPadre) {
                     DB::table('monMonitoreo')->where('idMonitoreo', $registroPadre->idMonitoreo)->update($datos);
                 } else {
@@ -169,6 +174,7 @@ class SyncCybernetOldController extends Controller
             "updated" => $updatedRecords
         ]);
     }
+
 
 
 
