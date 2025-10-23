@@ -233,16 +233,25 @@ class SyncCybernetOldController extends Controller
     // Función para limpiar fechas inválidas
     private function limpiarFecha($valor)
     {
+        // Si el valor viene vacío, 0 o con formato inválido, devuelve null
         if (
-            $valor === '0000-00-00 00:00:00' ||
+            empty($valor) ||
             $valor === '0' ||
             $valor === 0 ||
-            $valor === null ||
-            $valor === ''
+            $valor === '0000-00-00 00:00:00' ||
+            $valor === '0000-00-00' ||
+            strtolower($valor) === 'null'
         ) {
             return null;
         }
-        return $valor;
+
+        try {
+            // Intenta parsear con Carbon y devolverlo en formato MySQL correcto
+            return \Carbon\Carbon::parse($valor)->format('Y-m-d H:i:s');
+        } catch (\Exception $e) {
+            // Si no se puede convertir, lo devolvemos como null
+            return null;
+        }
     }
 
 
