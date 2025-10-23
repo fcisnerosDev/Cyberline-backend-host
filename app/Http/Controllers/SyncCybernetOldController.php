@@ -78,11 +78,11 @@ class SyncCybernetOldController extends Controller
                     $flgSolucionado = 1;
                 }
 
-                // MANTENER TAMBIÉN OTROS CAMPOS SI VIENEN VACÍOS (no sobrescribir)
+                // IGNORAR CAMPOS VACÍOS O NULL PARA NO SOBRESCRIBIR
                 if ($registroPadre) {
                     foreach ($item as $k => $v) {
                         if ($v === null || $v === '' || $v === '0000-00-00 00:00:00') {
-                            unset($item[$k]); // se ignora ese campo
+                            unset($item[$k]);
                         }
                     }
                 }
@@ -97,34 +97,34 @@ class SyncCybernetOldController extends Controller
                     $fechaSyncPadre = $fechaSyncHijo->copy()->addSeconds(2);
                 }
 
-                // DATOS PREPARADOS
+                // DATOS PREPARADOS CON PREVENCIÓN DE NULOS
                 $datos = [
-                    'idNodoPerspectiva'         => $item['idNodoPerspectiva'] ?? null,
-                    'idSync'                    => $item['idSync'] ?? null,
-                    'idSyncNodo'                => $item['idSyncNodo'] ?? null,
-                    'idServicio'                => $item['idServicio'] ?? null,
-                    'idServicioNodo'            => $item['idServicioNodo'] ?? null,
-                    'idEquipo'                  => $item['idEquipo'] ?? null,
-                    'idEquipoNodo'              => $item['idEquipoNodo'] ?? null,
-                    'idTipoServicio'            => $item['idTipoServicio'] ?? null,
-                    'idTipoServicioNodo'        => $item['idTipoServicioNodo'] ?? null,
-                    'idIp'                      => $item['idIp'] ?? null,
-                    'idIpNodo'                  => $item['idIpNodo'] ?? null,
-                    'idFrecuencia'              => $item['idFrecuencia'] ?? null,
-                    'idFrecuenciaNodo'          => $item['idFrecuenciaNodo'] ?? null,
-                    'idUsuario'                 => $item['idUsuario'] ?? null,
-                    'idUsuarioNodo'             => $item['idUsuarioNodo'] ?? null,
-                    'dscMonitoreo'              => $item['dscMonitoreo'] ?? null,
-                    'etiqueta'                  => $item['etiqueta'] ?? null,
+                    'idNodoPerspectiva'         => $item['idNodoPerspectiva'] ?? '',
+                    'idSync'                    => $item['idSync'] ?? 0,
+                    'idSyncNodo'                => $item['idSyncNodo'] ?? '',
+                    'idServicio'                => $item['idServicio'] ?? 0,
+                    'idServicioNodo'            => $item['idServicioNodo'] ?? '',
+                    'idEquipo'                  => $item['idEquipo'] ?? 0,
+                    'idEquipoNodo'              => $item['idEquipoNodo'] ?? '',
+                    'idTipoServicio'            => $item['idTipoServicio'] ?? 0,
+                    'idTipoServicioNodo'        => $item['idTipoServicioNodo'] ?? '',
+                    'idIp'                      => $item['idIp'] ?? 0,
+                    'idIpNodo'                  => $item['idIpNodo'] ?? '',
+                    'idFrecuencia'              => $item['idFrecuencia'] ?? 0,
+                    'idFrecuenciaNodo'          => $item['idFrecuenciaNodo'] ?? '',
+                    'idUsuario'                 => $item['idUsuario'] ?? 0,
+                    'idUsuarioNodo'             => $item['idUsuarioNodo'] ?? '',
+                    'dscMonitoreo'              => $item['dscMonitoreo'] ?? '',
+                    'etiqueta'                  => $item['etiqueta'] ?? '', // NO NULL
                     'numReintentos'             => (int)($item['numReintentos'] ?? 0),
-                    'paramametroScript'         => $item['paramametroScript'] ?? null,
-                    'paramNumPort'              => $item['paramNumPort'] ?? null,
+                    'paramametroScript'         => $item['paramametroScript'] ?? '',
+                    'paramNumPort'              => $item['paramNumPort'] ?? '',
                     'paramNumPackets'           => (int)($item['paramNumPackets'] ?? 0),
                     'paramTimeout'              => (int)($item['paramTimeout'] ?? 0),
                     'paramWarningUmbral'        => (float)($item['paramWarningUmbral'] ?? 0),
                     'paramCriticalUmbral'       => (float)($item['paramCriticalUmbral'] ?? 0),
-                    'anotacion'                 => $item['anotacion'] ?? null,
-                    'cuentasNotificacion'       => $item['cuentasNotificacion'] ?? null,
+                    'anotacion'                 => $item['anotacion'] ?? '',
+                    'cuentasNotificacion'       => $item['cuentasNotificacion'] ?? '',
                     'intervaloNotificacion'     => (int)($item['intervaloNotificacion'] ?? 0),
 
                     // FECHAS
@@ -183,6 +183,7 @@ class SyncCybernetOldController extends Controller
             "updated" => $updatedRecords
         ]);
     }
+
 
 
 
