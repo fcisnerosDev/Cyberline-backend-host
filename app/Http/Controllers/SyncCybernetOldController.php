@@ -53,29 +53,33 @@ class SyncCybernetOldController extends Controller
             DB::statement('SET @DISABLE_TRIGGER = 1;');
 
             foreach ($data['data'] as $item) {
+                // 🔹 Limpia TODAS las fechas
                 foreach ($item as $key => $value) {
-                    if (Str::startsWith($key, 'fecha') && !empty($value)) {
+                    if (Str::startsWith($key, 'fecha')) {
                         $item[$key] = $this->limpiarFecha($value);
                     }
                 }
 
-                // Buscar registro actual del padre
+                // 🔹 Obtiene registro padre actual
                 $registroPadre = DB::table('monMonitoreo')->where('idMonitoreo', $item['idMonitoreo'])->first();
 
-                // --- Lógica del flgSolucionado ---
+                // 🔹 flgSolucionado no retrocede
                 $flgSolucionado = (string)($item['flgSolucionado'] ?? '0');
                 if ($registroPadre && $registroPadre->flgSolucionado === '1') {
-                    $flgSolucionado = '1'; // nunca retrocede a 0
+                    $flgSolucionado = '1';
                 }
 
-                // --- Fechas de sincronización ---
-                $fechaSyncHijo = isset($item['fechaSyncHijo']) ? \Carbon\Carbon::parse($item['fechaSyncHijo']) : now();
+                // 🔹 Fechas de sincronización coherentes
+                $fechaSyncHijo = $this->limpiarFecha($item['fechaSyncHijo'] ?? null)
+                    ? \Carbon\Carbon::parse($item['fechaSyncHijo'])
+                    : now();
                 $fechaSyncPadre = now();
+
                 if ($fechaSyncPadre->lessThanOrEqualTo($fechaSyncHijo)) {
                     $fechaSyncPadre = $fechaSyncHijo->copy()->addSeconds(2);
                 }
 
-                // --- Inserción / actualización ---
+                // 🔹 Inserta o actualiza registro
                 DB::table('monMonitoreo')->updateOrInsert(
                     ['idMonitoreo' => $item['idMonitoreo']],
                     [
@@ -108,8 +112,8 @@ class SyncCybernetOldController extends Controller
                         'anotacion'                 => $item['anotacion'] ?? null,
                         'cuentasNotificacion'       => $item['cuentasNotificacion'] ?? null,
                         'intervaloNotificacion'     => $item['intervaloNotificacion'] ?? null,
-                        'fechaUltimaVerificacion'   => $item['fechaUltimaVerificacion'] ?? now(),
-                        'fechaUltimoCambio'         => $item['fechaUltimoCambio'] ?? now(),
+                        'fechaUltimaVerificacion'   => $item['fechaUltimaVerificacion'] ?? null,
+                        'fechaUltimoCambio'         => $item['fechaUltimoCambio'] ?? null,
                         'fechaUltimaNotificacion'   => $item['fechaUltimaNotificacion'] ?? null,
                         'fechaActivacion'           => $item['fechaActivacion'] ?? null,
                         'fechaDesactivacion'        => $item['fechaDesactivacion'] ?? null,
@@ -145,17 +149,8 @@ class SyncCybernetOldController extends Controller
                     "fechaSyncPadre" => $fechaSyncPadre->toDateTimeString(),
                 ];
             }
-
-            DB::statement('SET @DISABLE_TRIGGER = NULL;');
         }
-
-        return response()->json([
-            "status"          => "success",
-            "message"         => "Datos sincronizados correctamente.",
-            "updated_records" => $updatedRecords,
-        ]);
     }
-
 
 
 
