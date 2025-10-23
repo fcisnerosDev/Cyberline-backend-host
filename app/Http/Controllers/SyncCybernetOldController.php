@@ -60,8 +60,16 @@ class SyncCybernetOldController extends Controller
                     }
                 }
 
-                // 🔹 Obtiene registro padre actual
-                $registroPadre = DB::table('monMonitoreo')->where('idMonitoreo', $item['idMonitoreo'])->first();
+                // 🔹 Obtiene registro actual (por idMonitoreo o combinación única)
+                $registroPadre = DB::table('monMonitoreo')
+                    ->where('idMonitoreo', $item['idMonitoreo'])
+                    ->orWhere(function ($q) use ($item) {
+                        $q->where('idServicio', $item['idServicio'] ?? null)
+                            ->where('idEquipo', $item['idEquipo'] ?? null)
+                            ->where('idTipoServicio', $item['idTipoServicio'] ?? null)
+                            ->where('idIp', $item['idIp'] ?? null);
+                    })
+                    ->first();
 
                 // 🔹 flgSolucionado no retrocede
                 $flgSolucionado = (string)($item['flgSolucionado'] ?? '0');
@@ -69,79 +77,81 @@ class SyncCybernetOldController extends Controller
                     $flgSolucionado = '1';
                 }
 
-                // 🔹 Fechas de sincronización coherentes
+                // 🔹 Fechas coherentes
                 $fechaSyncHijo = $this->limpiarFecha($item['fechaSyncHijo'] ?? null)
                     ? \Carbon\Carbon::parse($item['fechaSyncHijo'])
                     : now();
                 $fechaSyncPadre = now();
-
                 if ($fechaSyncPadre->lessThanOrEqualTo($fechaSyncHijo)) {
                     $fechaSyncPadre = $fechaSyncHijo->copy()->addSeconds(2);
                 }
 
-                // 🔹 Inserta o actualiza registro
-                DB::table('monMonitoreo')->updateOrInsert(
-                    ['idMonitoreo' => $item['idMonitoreo']],
-                    [
-                        'idNodoPerspectiva'         => $item['idNodoPerspectiva'] ?? null,
-                        'idSync'                    => $item['idSync'] ?? null,
-                        'idSyncNodo'                => $item['idSyncNodo'] ?? null,
-                        'idServicio'                => $item['idServicio'] ?? null,
-                        'idServicioNodo'            => $item['idServicioNodo'] ?? null,
-                        'idEquipo'                  => $item['idEquipo'] ?? null,
-                        'idEquipoNodo'              => $item['idEquipoNodo'] ?? null,
-                        'idTipoServicio'            => $item['idTipoServicio'] ?? null,
-                        'idTipoServicioNodo'        => $item['idTipoServicioNodo'] ?? null,
-                        'idIp'                      => $item['idIp'] ?? null,
-                        'idIpNodo'                  => $item['idIpNodo'] ?? null,
-                        'idFrecuencia'              => $item['idFrecuencia'] ?? null,
-                        'idFrecuenciaNodo'          => $item['idFrecuenciaNodo'] ?? null,
-                        'idUsuario'                 => $item['idUsuario'] ?? null,
-                        'idUsuarioNodo'             => $item['idUsuarioNodo'] ?? null,
-                        'dscMonitoreo'              => $item['dscMonitoreo'] ?? null,
-                        'etiqueta'                  => $item['etiqueta'] ?? null,
-                        'numReintentos'             => $item['numReintentos'] ?? 0,
-                        'paramametroScript'         => $item['paramametroScript'] ?? null,
-                        'flgMonitoreoIp'            => $item['flgMonitoreoIp'] ?? '0',
-                        'paramNumPort'              => $item['paramNumPort'] ?? null,
-                        'paramNumPackets'           => $item['paramNumPackets'] ?? null,
-                        'paramTimeout'              => $item['paramTimeout'] ?? null,
-                        'paramWarningUmbral'        => $item['paramWarningUmbral'] ?? null,
-                        'paramCriticalUmbral'       => $item['paramCriticalUmbral'] ?? null,
-                        'flgRevision'               => $item['flgRevision'] ?? '0',
-                        'anotacion'                 => $item['anotacion'] ?? null,
-                        'cuentasNotificacion'       => $item['cuentasNotificacion'] ?? null,
-                        'intervaloNotificacion'     => $item['intervaloNotificacion'] ?? null,
-                        'fechaUltimaVerificacion'   => $item['fechaUltimaVerificacion'] ?? null,
-                        'fechaUltimoCambio'         => $item['fechaUltimoCambio'] ?? null,
-                        'fechaUltimaNotificacion'   => $item['fechaUltimaNotificacion'] ?? null,
-                        'fechaActivacion'           => $item['fechaActivacion'] ?? null,
-                        'fechaDesactivacion'        => $item['fechaDesactivacion'] ?? null,
-                        'flgStatus'                 => $item['flgStatus'] ?? '0',
-                        'flgStatusControl'          => !empty($item['flgStatusControl']) ? $item['flgStatusControl'] : '0',
-                        'flgCondicionSolucionado'   => $item['flgCondicionSolucionado'] ?? '0',
-                        'flgOcultarMonitoreo'       => $item['flgOcultarMonitoreo'] ?? '0',
-                        'flgSonido'                 => !empty($item['flgSonido']) ? $item['flgSonido'] : '0',
-                        'flgSolucionado'            => $flgSolucionado,
-                        'flgEstado'                 => $item['flgEstado'] ?? '0',
-                        'flgActivacionAutomatica'   => $item['flgActivacionAutomatica'] ?? '0',
-                        'fechaActivacionAutomatica' => $item['fechaActivacionAutomatica'] ?? null,
-                        'fechaModificacion'         => $item['fechaModificacion'] ?? null,
-                        'fechaModificacionStatus'   => $item['fechaModificacionStatus'] ?? null,
-                        'fechaCreacion'             => $item['fechaCreacion'] ?? null,
-                        'fechaRegistro'             => $item['fechaRegistro'] ?? null,
-                        'flgSync'                   => $item['flgSync'] ?? '0',
-                        'flgSyncHijo'               => '1',
-                        'flgSyncPadre'              => '1',
-                        'fechaSyncHijo'             => $fechaSyncHijo,
-                        'fechaSyncPadre'            => $fechaSyncPadre,
-                        'temporal'                  => $item['temporal'] ?? '0',
+                // 🔹 Datos a insertar/actualizar
+                $datos = [
+                    'idNodoPerspectiva'         => $item['idNodoPerspectiva'] ?? null,
+                    'idSync'                    => $item['idSync'] ?? null,
+                    'idSyncNodo'                => $item['idSyncNodo'] ?? null,
+                    'idServicio'                => $item['idServicio'] ?? null,
+                    'idServicioNodo'            => $item['idServicioNodo'] ?? null,
+                    'idEquipo'                  => $item['idEquipo'] ?? null,
+                    'idEquipoNodo'              => $item['idEquipoNodo'] ?? null,
+                    'idTipoServicio'            => $item['idTipoServicio'] ?? null,
+                    'idTipoServicioNodo'        => $item['idTipoServicioNodo'] ?? null,
+                    'idIp'                      => $item['idIp'] ?? null,
+                    'idIpNodo'                  => $item['idIpNodo'] ?? null,
+                    'idFrecuencia'              => $item['idFrecuencia'] ?? null,
+                    'idFrecuenciaNodo'          => $item['idFrecuenciaNodo'] ?? null,
+                    'idUsuario'                 => $item['idUsuario'] ?? null,
+                    'idUsuarioNodo'             => $item['idUsuarioNodo'] ?? null,
+                    'dscMonitoreo'              => $item['dscMonitoreo'] ?? null,
+                    'etiqueta'                  => $item['etiqueta'] ?? null,
+                    'numReintentos'             => $item['numReintentos'] ?? 0,
+                    'paramametroScript'         => $item['paramametroScript'] ?? null,
+                    'flgMonitoreoIp'            => $item['flgMonitoreoIp'] ?? '0',
+                    'paramNumPort'              => $item['paramNumPort'] ?? null,
+                    'paramNumPackets'           => $item['paramNumPackets'] ?? null,
+                    'paramTimeout'              => $item['paramTimeout'] ?? null,
+                    'paramWarningUmbral'        => $item['paramWarningUmbral'] ?? null,
+                    'paramCriticalUmbral'       => $item['paramCriticalUmbral'] ?? null,
+                    'flgRevision'               => $item['flgRevision'] ?? '0',
+                    'anotacion'                 => $item['anotacion'] ?? null,
+                    'cuentasNotificacion'       => $item['cuentasNotificacion'] ?? null,
+                    'intervaloNotificacion'     => $item['intervaloNotificacion'] ?? null,
+                    'fechaUltimaVerificacion'   => $item['fechaUltimaVerificacion'] ?? null,
+                    'fechaUltimoCambio'         => $item['fechaUltimoCambio'] ?? null,
+                    'fechaUltimaNotificacion'   => $item['fechaUltimaNotificacion'] ?? null,
+                    'fechaActivacion'           => $item['fechaActivacion'] ?? null,
+                    'fechaDesactivacion'        => $item['fechaDesactivacion'] ?? null,
+                    'flgStatus'                 => $item['flgStatus'] ?? '0',
+                    'flgStatusControl'          => $item['flgStatusControl'] ?? '0',
+                    'flgCondicionSolucionado'   => $item['flgCondicionSolucionado'] ?? '0',
+                    'flgOcultarMonitoreo'       => $item['flgOcultarMonitoreo'] ?? '0',
+                    'flgSonido'                 => $item['flgSonido'] ?? '0',
+                    'flgSolucionado'            => $flgSolucionado,
+                    'flgEstado'                 => $item['flgEstado'] ?? '0',
+                    'flgActivacionAutomatica'   => $item['flgActivacionAutomatica'] ?? '0',
+                    'fechaActivacionAutomatica' => $item['fechaActivacionAutomatica'] ?? null,
+                    'fechaModificacion'         => $item['fechaModificacion'] ?? null,
+                    'fechaModificacionStatus'   => $item['fechaModificacionStatus'] ?? null,
+                    'fechaCreacion'             => $item['fechaCreacion'] ?? null,
+                    'fechaRegistro'             => $item['fechaRegistro'] ?? null,
+                    'flgSync'                   => $item['flgSync'] ?? '0',
+                    'flgSyncHijo'               => '1',
+                    'flgSyncPadre'              => '1',
+                    'fechaSyncHijo'             => $fechaSyncHijo,
+                    'fechaSyncPadre'            => $fechaSyncPadre,
+                    'temporal'                  => $item['temporal'] ?? '0',
+                    'cantidad_alertas'          => $item['cantidad_alertas'] ?? '0',
+                    'porcentaje_alertas'        => $item['porcentaje_alertas'] ?? '0',
+                ];
 
-                        'cantidad_alertas'          => !empty($item['cantidad_alertas']) ? $item['cantidad_alertas'] : '0',
-                        'porcentaje_alertas'          => !empty($item['porcentaje_alertas']) ? $item['porcentaje_alertas'] : '0',
-
-                    ]
-                );
+                if ($registroPadre) {
+                    // 🔹 Actualiza si existe
+                    DB::table('monMonitoreo')->where('idMonitoreo', $registroPadre->idMonitoreo)->update($datos);
+                } else {
+                    // 🔹 Inserta si no existe
+                    DB::table('monMonitoreo')->insert(array_merge(['idMonitoreo' => $item['idMonitoreo']], $datos));
+                }
 
                 $updatedRecords[] = [
                     "idNodo"         => $sysNodo->idNodo,
@@ -152,7 +162,13 @@ class SyncCybernetOldController extends Controller
                 ];
             }
         }
+
+        return response()->json([
+            "status" => "success",
+            "updated" => $updatedRecords
+        ]);
     }
+
 
 
 
