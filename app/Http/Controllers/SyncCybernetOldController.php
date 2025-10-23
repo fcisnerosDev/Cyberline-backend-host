@@ -136,8 +136,10 @@ class SyncCybernetOldController extends Controller
                         'fechaSyncHijo'             => $fechaSyncHijo,
                         'fechaSyncPadre'            => $fechaSyncPadre,
                         'temporal'                  => $item['temporal'] ?? '0',
-                        'cantidad_alertas'          => $item['cantidad_alertas'] ?? 0,
-                        'porcentaje_alertas'        => $item['porcentaje_alertas'] ?? 0,
+
+                        'cantidad_alertas'          => !empty($item['cantidad_alertas']) ? $item['cantidad_alertas'] : '0',
+                        'porcentaje_alertas'          => !empty($item['porcentaje_alertas']) ? $item['porcentaje_alertas'] : '0',
+
                     ]
                 );
 
