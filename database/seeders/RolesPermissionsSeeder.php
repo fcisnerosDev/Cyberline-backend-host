@@ -56,12 +56,12 @@ class RolesPermissionsSeeder extends Seeder
         }
 
         // Asignar rol al usuario legacy de prueba
-        $usuarioPrueba = UserCyberV6::where('idPersona', 3425)->first();
+        $usuarioPrueba = UserCyberV6::where('idPersona', 1501)->first();
         if ($usuarioPrueba) {
-            $usuarioPrueba->assignRole('Administracion');
-            echo "Rol 'Administracion' asignado al usuario {$usuarioPrueba->usuario}\n";
+            $usuarioPrueba->assignRole('Contabilidad');
+            echo "Rol 'Contabilidad' asignado al usuario {$usuarioPrueba->usuario}\n";
         } else {
-            echo "Usuario con idPersona 3425 no encontrado.\n";
+            echo "Usuario con idPersona 1501 no encontrado.\n";
         }
     }
 }
