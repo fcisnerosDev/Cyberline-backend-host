@@ -186,6 +186,11 @@ class FacturasElectronicasController extends Controller
             $query->whereDate('fecha_emision', $request->fecha);
         }
 
+
+        if ($request->filled('tipo_operacion')) {
+            $query->where('tipo_operacion', $request->tipo_operacion);
+        }
+
         $response = $query->orderBy('id', 'desc')->paginate(20);
 
         $response->setCollection($response->getCollection()->transform(function ($factura) {
@@ -348,14 +353,20 @@ class FacturasElectronicasController extends Controller
     }
 
     public function exportFacturas(Request $request)
-    {
-        $fechaHora = now()->format('d-m-Y H-i');
-        $startDate = $request->query('start_date'); // o $request->input('start_date')
-        $endDate   = $request->query('end_date');
+{
+   
+    $fechaHora = now()->format('d-m-Y H-i');
 
-        return \Maatwebsite\Excel\Facades\Excel::download(
-            new FacturasExport($startDate, $endDate),
-            "reporte-facturas-{$fechaHora}.xlsx"
-        );
-    }
+
+    return \Maatwebsite\Excel\Facades\Excel::download(
+        new FacturasExport(
+            $request->query('start_date'),
+            $request->query('end_date'),
+            $request->query('ruc'),
+            $request->query('estado_pago_id'),
+            $request->query('tipo_operacion')
+        ),
+        "reporte-facturas-{$fechaHora}.xlsx"
+    );
+}
 }

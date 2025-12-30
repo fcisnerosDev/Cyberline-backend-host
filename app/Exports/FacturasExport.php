@@ -26,11 +26,24 @@ class FacturasExport implements FromCollection, WithHeadings, WithStyles
     protected $startDate;
     protected $endDate;
 
-    public function __construct($startDate = null, $endDate = null)
-    {
+    protected $ruc;
+    protected $estadoPagoId;
+    protected $tipoOperacion;
+
+    public function __construct(
+        $startDate = null,
+        $endDate = null,
+        $ruc = null,
+        $estadoPagoId = null,
+        $tipoOperacion = null
+    ) {
         // Normalizamos las fechas a solo día (YYYY-MM-DD)
         $this->startDate = $startDate ? Carbon::parse($startDate)->toDateString() : null;
-        $this->endDate   = $endDate ? Carbon::parse($endDate)->toDateString() : null;
+        $this->endDate = $endDate ? Carbon::parse($endDate)->toDateString() : null;
+
+        $this->ruc = $ruc;
+        $this->estadoPagoId = $estadoPagoId;
+        $this->tipoOperacion = $tipoOperacion;
     }
 
     public function collection()
@@ -41,13 +54,30 @@ class FacturasExport implements FromCollection, WithHeadings, WithStyles
         // Filtros de fecha ignorando la hora
         if ($this->startDate && $this->endDate) {
             $query->whereDate('created_at', '>=', $this->startDate)
-                  ->whereDate('created_at', '<=', $this->endDate);
+                ->whereDate('created_at', '<=', $this->endDate);
         } elseif ($this->startDate) {
             $query->whereDate('created_at', '>=', $this->startDate);
         } elseif ($this->endDate) {
             $query->whereDate('created_at', '<=', $this->endDate);
         }
-        
+
+        if ($this->ruc) {
+            $query->whereHas('client', function ($q) {
+                $q->where('num_doc', 'like', "%{$this->ruc}%");
+            });
+        }
+
+        // Estado de pago
+        if ($this->estadoPagoId !== null) {
+            $query->where('estado_pago_id', $this->estadoPagoId);
+        }
+
+        // Tipo operación SUNAT
+        if ($this->tipoOperacion !== null) {
+            $query->where('tipo_operacion', $this->tipoOperacion);
+        }
+
+
         $facturas = $query->get();
         return $facturas->flatMap(function ($factura) {
             $cliente = $factura->client;
@@ -120,74 +150,60 @@ class FacturasExport implements FromCollection, WithHeadings, WithStyles
             $valorDetraccion = $detraccion->valor_detraccion ?? '';
 
             // Recorremos los detalles y repetimos cabecera
-            return $factura->details->map(function ($detalle) use (
-                $factura,
-                $cliente,
-                $nacionalidad,
-                $tipoOperacion,
-                $metodoPago,
-                $estadoPago,
-                $tipoPago,
-                $estadoSunat,
-                $montoCuota,
-                $fechaPagoCuota,
-                $percentDetraccion,
-                $tipoCambio,
-                $valorDetraccion
-            ) {
+            return $factura->details->map(function ($detalle) use ($factura, $cliente, $nacionalidad, $tipoOperacion, $metodoPago, $estadoPago, $tipoPago, $estadoSunat, $montoCuota, $fechaPagoCuota, $percentDetraccion, $tipoCambio, $valorDetraccion) {
                 return [
                     // Datos de factura
-                    'id'                 => $factura->id,
-                    'serie'              => $factura->serie,
-                    'correlativo'        => $factura->correlativo,
-                    'fecha_emision'      => $factura->fecha_emision,
-                    'forma_pago_tipo'    => $factura->forma_pago_tipo,
-                    'tipo_moneda'        => $factura->tipo_moneda,
-                    'valor_venta'        => $factura->valor_venta,
-                    'subtotal'           => $factura->subtotal,
-                    'fecha_envio_sunat'  => $factura->created_at,
+                    'id' => $factura->id,
+                    'serie' => $factura->serie,
+                    'correlativo' => $factura->correlativo,
+                    'fecha_emision' => $factura->fecha_emision,
+                    'forma_pago_tipo' => $factura->forma_pago_tipo,
+                    'tipo_moneda' => $factura->tipo_moneda,
+                    'valor_venta' => $factura->valor_venta,
+                    'subtotal' => $factura->subtotal,
+                    'fecha_envio_sunat' => $factura->created_at,
 
                     // Cliente
-                    'rzn_social'         => $cliente->rzn_social ?? '',
-                    'num_doc'            => $cliente->num_doc ?? '',
-                    'nacionalidad'       => $nacionalidad,
-                    'Referencia'         => $factura->Referencia,
+                    'rzn_social' => $cliente->rzn_social ?? '',
+                    'num_doc' => $cliente->num_doc ?? '',
+                    'nacionalidad' => $nacionalidad,
+                    'Referencia' => $factura->Referencia,
 
                     // Mapeos
-                    'tipo_operacion'     => $tipoOperacion,
-                    'metodo_pago'        => $metodoPago,
-                    'tipo_pago_pt'       => $tipoPago,
+                    'tipo_operacion' => $tipoOperacion,
+                    'metodo_pago' => $metodoPago,
+                    'tipo_pago_pt' => $tipoPago,
 
                     // Campos adicionales
-                    'nota'               => $factura->nota ?? '',
-                    'tasa'               => $factura->tasa ?? '',
-                    'estado_pago'        => $estadoPago,
-                    'monto_cancelado'    => $factura->monto_cancelado ?? '',
-                    'fecha_cancelacion'  => $factura->fecha_cancelacion ?? '',
+                    'nota' => $factura->nota ?? '',
+                    'tasa' => $factura->tasa ?? '',
+                    'estado_pago' => $estadoPago,
+                    'monto_cancelado' => $factura->monto_cancelado ?? '',
+                    'fecha_cancelacion' => $factura->fecha_cancelacion ?? '',
 
                     // Estado SUNAT
-                    'estado_sunat'       => $estadoSunat,
+                    'estado_sunat' => $estadoSunat,
 
                     // === CUOTAS ===
-                    'monto_cuota'        => $montoCuota,
-                    'fecha_pago_cuota'   => $fechaPagoCuota,
+                    'monto_cuota' => $montoCuota,
+                    'fecha_pago_cuota' => $fechaPagoCuota,
 
                     // === DETRACCION ===
                     'percent_detraccion' => $percentDetraccion,
-                    'tipo_cambio'        => $tipoCambio,
-                    'valor_detraccion'   => $valorDetraccion,
+                    'tipo_cambio' => $tipoCambio,
+                    'valor_detraccion' => $valorDetraccion,
 
                     // === DETALLES ===
-                    'cod_producto'       => $detalle->cod_producto,
-                    'descripcion'        => $detalle->descripcion,
-                    'cantidad'           => $detalle->cantidad,
+                    'cod_producto' => $detalle->cod_producto,
+                    'descripcion' => $detalle->descripcion,
+                    'cantidad' => $detalle->cantidad,
                     'mto_valor_unitario' => $detalle->mto_valor_unitario,
-                    'mto_base_igv'       => $detalle->mto_base_igv,
-                    'porcentaje_igv'     => $detalle->porcentaje_igv,
-                    'igv'                => $detalle->igv,
-                    'total_impuestos'    => $detalle->total_impuestos,
+                    'mto_base_igv' => $detalle->mto_base_igv,
+                    'porcentaje_igv' => $detalle->porcentaje_igv,
+                    'igv' => $detalle->igv,
+                    'total_impuestos' => $detalle->total_impuestos,
                     'mto_precio_unitario' => $detalle->mto_precio_unitario,
-                    'mto_valor_venta'    => $detalle->mto_valor_venta,
+                    'mto_valor_venta' => $detalle->mto_valor_venta,
                     'description_service' => $detalle->description_service,
                 ];
             });
@@ -258,11 +274,11 @@ class FacturasExport implements FromCollection, WithHeadings, WithStyles
         $lastColumn = 'AI'; // Ajustado a la última columna (35 columnas aprox)
         $sheet->getStyle("A1:{$lastColumn}1")->applyFromArray([
             'font' => [
-                'bold'  => true,
+                'bold' => true,
                 'color' => ['rgb' => 'FFFFFF'],
             ],
             'fill' => [
-                'fillType'   => Fill::FILL_SOLID,
+                'fillType' => Fill::FILL_SOLID,
                 'startColor' => ['rgb' => '0000FF'],
             ],
         ]);

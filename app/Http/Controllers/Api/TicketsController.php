@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Models\cybTrabajo;
+use Carbon\Carbon;
 use App\Helpers\EstadoHelper;
 use Illuminate\Support\Facades\Auth;
 use App\Helpers\PersonaHelper;
@@ -166,59 +168,96 @@ class TicketsController extends Controller
             $ticket = Ticket::where('numero', $numero)->first();
 
             if (!$ticket) {
-                return response()->json(['status' => false, 'message' => 'Ticket no encontrado'], 404);
+                return response()->json([
+                    'status' => false,
+                    'message' => 'Ticket no encontrado'
+                ], 404);
             }
 
+            // --- Helpers y datos descriptivos ---
             $responsable = PersonaHelper::getResponsableById($ticket->idUsuarioResponsable);
-            $solicitante = $solicitante = PersonaHelper::getSolicitanteById($ticket->idUsuarioSolicitante, $ticket->idUsuarioSolicitanteNodo);
-            $idCompaniaSolicitante = $ticket->idCompaniaSolicitante;
-            $CompaniaSolicitante = companiaHelper::getCompaniaById($ticket->idTicketNodo, $idCompaniaSolicitante);
-            $correoReporta = CorreoReportaHelper::getCorreosReportaById($ticket->idTicket);
+            $solicitante = PersonaHelper::getSolicitanteById($ticket->idUsuarioSolicitante, $ticket->idUsuarioSolicitanteNodo);
+            $CompaniaSolicitante = companiaHelper::getCompaniaById($ticket->idTicketNodo, $ticket->idCompaniaSolicitante);
             $CompaniaSolicitanteOficina = oficinaHelper::getoficinaById($ticket->idOficina);
+            $correoReporta = CorreoReportaHelper::getCorreosReportaById($ticket->idTicket);
 
-
-
-            $ticket->responsable = $responsable ? $responsable->nombre . ' ' . $responsable->apellidos : 'No disponible';
-            $ticket->solicitante = $solicitante ? $solicitante->nombre . ' ' . $solicitante->apellidos : 'No disponible';
+            $ticket->responsable = $responsable ? "{$responsable->nombre} {$responsable->apellidos}" : 'No disponible';
+            $ticket->solicitante = $solicitante ? "{$solicitante->nombre} {$solicitante->apellidos}" : 'No disponible';
             $ticket->CompaniaSolicitante = $CompaniaSolicitante ? $CompaniaSolicitante->nombreCorto : 'No disponible';
             $ticket->CompaniaSolicitanteOficina = $CompaniaSolicitanteOficina ? $CompaniaSolicitanteOficina->nombre : 'No disponible';
-
             $ticket->correoReporta = $correoReporta;
-            // $ticket->atenciones = $atenciones;
 
+            // --- 1. Tiempo total del ticket (solicitud a cierre) ---
+            if ($ticket->fechaSolicitud && $ticket->fechaCierre) {
+                $inicio = Carbon::parse($ticket->fechaSolicitud);
+                $fin = Carbon::parse($ticket->fechaCierre);
+                $diff = $inicio->diff($fin);
+
+                $ticket->tiempoTranscurrido = sprintf(
+                    "%d días %d horas %d minutos",
+                    $diff->days,
+                    $diff->h,
+                    $diff->i
+                );
+            } else {
+                $ticket->tiempoTranscurrido = 'No disponible';
+            }
+
+            // --- 2. Tiempo total (creación a cierre, referencia) ---
+            if ($ticket->fechaCreacion && $ticket->fechaCierre) {
+                $inicio = Carbon::parse($ticket->fechaCreacion);
+                $fin = Carbon::parse($ticket->fechaCierre);
+                $diff = $inicio->diff($fin);
+
+                $ticket->tiempoTotal = sprintf(
+                    "%d días %d horas %d minutos",
+                    $diff->days,
+                    $diff->h,
+                    $diff->i
+                );
+            } else {
+                $ticket->tiempoTotal = 'No disponible';
+            }
+
+            // --- 3. Procesar atenciones con sus trabajos asociados ---
+            $atenciones = cybAtencion::where('idTicket', $ticket->idTicket)
+                ->where('flgEstado', '1')
+                ->orderBy('fechaCreacion', 'asc')
+                ->get();
+
+            $totalAtenciones = $atenciones->count();
+            $tiempoTotalBrutoSegundos = 0;
+            $ultimaAtencionDuracion = '00:00:00';
+            $ultimaAtencionFecha = null;
+
+            foreach ($atenciones as $atencion) {
+                // Buscar trabajo asociado
+                $trabajo = cybTrabajo::where('idTrabajo', $atencion->idTrabajo ?? null)->first();
+
+                if ($trabajo && $trabajo->fechaInicio && $trabajo->fechaTermino) {
+                    $inicio = Carbon::parse($trabajo->fechaInicio);
+                    $fin = Carbon::parse($trabajo->fechaTermino);
+                    $duracionSegundos = $fin->diffInSeconds($inicio);
+                    $tiempoTotalBrutoSegundos += $duracionSegundos;
+
+                    $ultimaAtencionDuracion = gmdate('H:i:s', $duracionSegundos);
+                    $ultimaAtencionFecha = $fin;
+                }
+            }
+
+            // --- 4. Resumen de tiempos ---
+            $tiempoTotalBruto = gmdate('H:i:s', $tiempoTotalBrutoSegundos);
+
+            $ticket->totalAtenciones = $totalAtenciones;
+            $ticket->tiempoTotalBruto = $tiempoTotalBruto;
+            $ticket->tiempoTotalPausa = '00:00:00'; // pendiente de implementar
+            $ticket->tiempoEfectivo = $tiempoTotalBruto; // sin pausas
+            $ticket->ultimaAtencionDuracion = $ultimaAtencionDuracion;
+            $ticket->ultimaAtencionFecha = $ultimaAtencionFecha
+                ? $ultimaAtencionFecha->format('Y-m-d H:i:s')
+                : null;
 
             return response()->json(['status' => true, 'data' => $ticket]);
-        } catch (\Exception $e) {
-            return response()->json(['status' => false, 'message' => 'Error al obtener los detalles del ticket', 'error' => $e->getMessage()], 500);
-        }
-    }
-
-
-    public function DetailAtencionesTicket($idTicket)
-    {
-        try {
-            // Atenciones activas ordenadas por fecha
-            $query = cybAtencion::where('idTicket', $idTicket)
-                ->where('flgEstado', '1')
-                ->orderBy('fechaCreacion', 'desc');
-
-            if (!$query->exists()) {
-                return response()->json(['status' => false, 'message' => 'Atención no encontrada'], 404);
-            }
-
-            // Paginación
-            $atenciones = $query->paginate(10);
-
-            // Agregar datos adicionales
-            foreach ($atenciones as $atencion) {
-                $responsable = PersonaHelper::getResponsableById($atencion->idResponsable);
-                $atencion->responsable = $responsable ? $responsable->nombre . ' ' . $responsable->apellidos : 'No disponible';
-
-                $correoReporta = CorreoReportaHelper::getCorreosReportaByAtencionId($atencion->idAtencion);
-                $atencion->correoReporta = $correoReporta;
-            }
-
-            return response()->json(['status' => true, 'data' => $atenciones]);
         } catch (\Exception $e) {
             return response()->json([
                 'status' => false,
@@ -227,6 +266,86 @@ class TicketsController extends Controller
             ], 500);
         }
     }
+
+    public function DetailAtencionesTicket($idTicket)
+    {
+        try {
+            // Buscar atenciones activas del ticket
+            $query = cybAtencion::where('idTicket', $idTicket)
+                ->where('flgEstado', '1')
+                ->orderBy('fechaCreacion', 'desc');
+
+            if (!$query->exists()) {
+                return response()->json([
+                    'status' => false,
+                    'message' => 'Atención no encontrada'
+                ], 404);
+            }
+
+            // Paginación
+            $atenciones = $query->paginate(10);
+
+            foreach ($atenciones as $atencion) {
+                // Obtener responsable
+                $responsable = PersonaHelper::getResponsableById($atencion->idResponsable);
+                $atencion->responsable = $responsable
+                    ? "{$responsable->nombre} {$responsable->apellidos}"
+                    : 'No disponible';
+
+                // Obtener correos reportados
+                $atencion->correoReporta = CorreoReportaHelper::getCorreosReportaByAtencionId($atencion->idAtencion);
+
+                // Buscar trabajo asociado (si existe)
+                $trabajo = null;
+                if (!empty($atencion->idTrabajo)) {
+                    $trabajo = cybTrabajo::where('idTrabajo', $atencion->idTrabajo)->first();
+                }
+
+                // Registrar datos del trabajo si existen
+                $atencion->fechaInicioTrabajo = $trabajo->fechaInicio ?? null;
+                $atencion->fechaTerminoTrabajo = $trabajo->fechaTermino ?? null;
+                $atencion->idResponsableTrabajo = $trabajo->idResponsable ?? null;
+
+                // Determinar inicio y fin
+                if ($trabajo && $trabajo->fechaInicio && $trabajo->fechaTermino) {
+                    $inicio = Carbon::parse($trabajo->fechaInicio);
+                    $fin = Carbon::parse($trabajo->fechaTermino);
+                } elseif ($atencion->fechaCreacion && $atencion->fechaModificacion) {
+                    // fallback si no hay datos en cybTrabajo
+                    $inicio = Carbon::parse($atencion->fechaCreacion);
+                    $fin = Carbon::parse($atencion->fechaModificacion);
+                } else {
+                    $inicio = null;
+                    $fin = null;
+                }
+
+                // Calcular duración
+                if ($inicio && $fin) {
+                    $segundos = $fin->diffInSeconds($inicio);
+                    $horas = floor($segundos / 3600);
+                    $minutos = floor(($segundos % 3600) / 60);
+                    $segundos = $segundos % 60;
+
+                    $atencion->duracion = sprintf("%02d:%02d:%02d", $horas, $minutos, $segundos);
+                } else {
+                    $atencion->duracion = "00:00:00";
+                }
+            }
+
+            return response()->json([
+                'status' => true,
+                'data' => $atenciones
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Error al obtener los detalles de las atenciones',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+
 
 
 
