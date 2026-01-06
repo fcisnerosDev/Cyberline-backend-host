@@ -23,9 +23,11 @@ use Luecano\NumeroALetras\NumeroALetras;
 use Barryvdh\DomPDF\Facade as PDF;
 use Maatwebsite\Excel\Excel;
 use Maatwebsite\Excel\Facades\Excel as FacadesExcel;
+use Symfony\Component\HttpFoundation\StreamedResponse;
+use Illuminate\Support\Facades\Http;
+use Symfony\Component\HttpFoundation\Response;
 
 class FacturasElectronicasController extends Controller
-
 {
     use ServiceFacturacionTrait;
 
@@ -190,6 +192,11 @@ class FacturasElectronicasController extends Controller
         if ($request->filled('tipo_operacion')) {
             $query->where('tipo_operacion', $request->tipo_operacion);
         }
+        if ($request->filled('descripcion')) {
+            $query->whereHas('invoiceDetails', function ($q) use ($request) {
+                $q->where('descripcion', 'like', '%' . $request->descripcion . '%');
+            });
+        }
 
         $response = $query->orderBy('id', 'desc')->paginate(20);
 
@@ -353,20 +360,61 @@ class FacturasElectronicasController extends Controller
     }
 
     public function exportFacturas(Request $request)
-{
-   
-    $fechaHora = now()->format('d-m-Y H-i');
+    {
+
+        $fechaHora = now()->format('d-m-Y H-i');
 
 
-    return \Maatwebsite\Excel\Facades\Excel::download(
-        new FacturasExport(
-            $request->query('start_date'),
-            $request->query('end_date'),
-            $request->query('ruc'),
-            $request->query('estado_pago_id'),
-            $request->query('tipo_operacion')
-        ),
-        "reporte-facturas-{$fechaHora}.xlsx"
-    );
-}
+        return \Maatwebsite\Excel\Facades\Excel::download(
+            new FacturasExport(
+                $request->query('start_date'),
+                $request->query('end_date'),
+                $request->query('ruc'),
+                $request->query('estado_pago_id'),
+                $request->query('tipo_operacion')
+            ),
+            "reporte-facturas-{$fechaHora}.xlsx"
+        );
+    }
+
+    public function downloadPdf(int $id)
+    {
+        // 1. Obtener datos de factura
+        $factura = Facturas::select('serie', 'correlativo')
+            ->findOrFail($id);
+
+        // 2. Nombre del archivo físico
+        $filename = "{$factura->serie}-{$factura->correlativo}.pdf";
+
+        // 3. URL REAL al storage del servicio de facturación
+        $baseUrl = rtrim(config('services.facturacion.url'), '/');
+        $pdfUrl = "{$baseUrl}/storage/facturas/{$filename}";
+
+        // 4. Descargar el PDF como stream
+        $response = Http::timeout(60)
+            ->withHeaders([
+                'Accept' => 'application/pdf',
+            ])
+            ->get($pdfUrl);
+
+        if (!$response->ok()) {
+            abort(404, 'PDF no encontrado en servicio de facturación');
+        }
+
+        // 5. Enviar al navegador
+        return response()->streamDownload(
+            function () use ($response) {
+                echo $response->body();
+            },
+            $filename,
+            [
+                'Content-Type' => 'application/pdf',
+                'Content-Disposition' => "attachment; filename={$filename}",
+                'Cache-Control' => 'no-store, no-cache, must-revalidate',
+            ]
+        );
+    }
+
+
+
 }

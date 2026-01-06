@@ -80,10 +80,11 @@ class Monitoreo extends Model
     {
         return $this->belongsTo(SysNodo::class, 'idNodoPerspectiva', 'idNodo'); // 'idNodo' debe existir en sysNodo
     }
-    public function Ip()
+    public function ip()
     {
-        return $this->belongsTo(Ip::class, 'idEquipo', 'idEquipo');
+        return $this->belongsTo(Ip::class, 'idIp', 'idIp');
     }
+
     public function oficina()
     {
         return $this->belongsTo(Oficina::class, 'idOficina', 'id');
@@ -97,4 +98,25 @@ class Monitoreo extends Model
     {
         return $this->belongsTo(Frecuencia::class, 'idFrecuencia', 'idFrecuencia');
     }
+
+    public function nodo()
+    {
+        return $this->belongsTo(SysNodo::class, 'idNodoPerspectiva', 'idNodo');
+    }
+
+    public function telegram()
+    {
+        return $this->hasOne(
+            MonMonitoreoTelegram::class,
+            'idMonitoreo',
+            'idMonitoreo'
+        )->whereColumn(
+                'mon_monitoreo_telegram.idMonitoreoNodo',
+                'monMonitoreo.idMonitoreoNodo'
+            )->whereColumn(
+                'mon_monitoreo_telegram.idNodoPerspectiva',
+                'monMonitoreo.idNodoPerspectiva'
+            );
+    }
+
 }

@@ -125,6 +125,9 @@ Route::controller(FacturasElectronicasController::class)->group(function () {
     Route::get('/facturacion/tipos-servicios', 'ServiciosTipoAll')->name('FE.ServiciosTipoAll');
     Route::get('/facturacion/servicios', 'ServiciosAll')->name('FE.ServiciosAll');
     Route::get('/facturacion/reporte', 'exportFacturas')->name('FE.exportFacturas');
+    Route::get('/facturacion/descarga/{id}', 'downloadPdf')->name('FE.exportDowndFacturas');
+
+
 
     // Route::get('/facturacion/search-factura/', 'searchFactura')->name('nc.search');
     // Route::post('/facturacion/nota-credito/enviar', 'enviarNotaCredito')->name('nc.post');
