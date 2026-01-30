@@ -213,26 +213,25 @@ class AuthController extends Controller
     //         ->header('Access-Control-Allow-Origin', '*');
     // }
 
-    private function generateLoginResponse($user)
-    {
-        $token = $user->createToken('token')->plainTextToken;
-        $cookie = cookie('cookie_token', $token, 60 * 24);
+ private function generateLoginResponse($user)
+{
+    $token = $user->createToken('token')->plainTextToken;
+    $cookie = cookie('cookie_token', $token, 60 * 24);
 
-        // Cargar roles y permisos con Spatie
-        $usersession = $user->load('roles.permissions');
+    // Cargar roles y permisos con Spatie
+    $usersession = $user->load('roles.permissions');
 
-        $response = [
-            'status' => true,
-            'data' => $user,
-            'datasession' => $usersession,
-            'access_token' => $token,
-            'access_token_type' => 'Bearer',
-        ];
+    $response = [
+        'status' => true,
+        'data' => $user,
+        'datasession' => $usersession,
+        'access_token' => $token,
+        'access_token_type' => 'Bearer',
+    ];
 
-        return response()->json($response)
-            ->withCookie($cookie)
-            ->header('Content-Type', 'application/json')
-            ->header('Access-Control-Allow-Origin', '*');
+    return response()->json($response)
+        ->withCookie($cookie)
+        ->header('Content-Type', 'application/json');
     }
 
     /**
