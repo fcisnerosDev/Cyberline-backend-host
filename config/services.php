@@ -16,6 +16,10 @@ return [
     'facturacion' => [
         'url' => env('SERVICE_FACTURACION'),
     ],
+
+    'oci' => [
+        'url' => env('SERVICE_OCITCS'),
+    ],
     'mailgun' => [
         'domain' => env('MAILGUN_DOMAIN'),
         'secret' => env('MAILGUN_SECRET'),

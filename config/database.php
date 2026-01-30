@@ -106,6 +106,20 @@ return [
             'engine' => null,
         ],
 
+        'helpdesk_cyberline' => [
+            'driver' => 'mysql',
+            'host' => env('DB_HELPDESK_HOST', '192.168.2.242'),
+            'port' => env('DB_HELPDESK_PORT', '3306'),
+            'database' => env('DB_HELPDESK_DATABASE', 'cyberline'),
+            'username' => env('DB_HELPDESK_USERNAME', 'helpdesk_user'), // CORREGIDO
+            'password' => env('DB_HELPDESK_PASSWORD', 'Cyber2026$securitydesk'),
+            'charset' => 'utf8mb4',
+            'collation' => 'utf8mb4_unicode_ci',
+            'prefix' => '',
+            'strict' => false,
+            'engine' => null,
+        ],
+
 
 
 
