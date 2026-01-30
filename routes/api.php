@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\Facturacion\Facturas\FacturasElectronicasController;
 use App\Http\Controllers\Api\Facturacion\NotasCredito\NotasCreditoController;
 use App\Http\Controllers\Api\Facturacion\NotasCredito\NotasDebitoController;
+use App\Http\Controllers\Api\Monitoreo\MonitoreoAgenteController;
 use App\Http\Controllers\Api\Monitoreo\MonitoreoController;
 use App\Http\Controllers\Api\ReportsController;
 use App\Http\Controllers\Api\UserController;
@@ -44,11 +45,20 @@ Route::group(['middleware' => ['auth:sanctum']], function () {
         Route::get('/tickets/pagination', 'indexPagination')->name('tickets.pagination');
         Route::get('/tickets/estados', 'getEstadosTicket')->name('tickets.getEstados');
         Route::get('/tickets/companias', 'getCompaniaTicket')->name('tickets.getCompaniaTicket');
+        Route::get('/tickets/oficinas/{idCompania}', 'getOficinaTicket')->name('tickets.getOficinaTicket');
+        Route::get('/tickets/oficinas/solicitante/{idOficina}', 'getOficinaSolicitanteTicket')->name('tickets.getOficinaSolicitanteTicket');
         Route::get('/tickets/responsables', 'getResponsablesTicket')->name('tickets.getResponsablesTicket');
-
+        // create
+        Route::get('/tickets/prioridades', 'getEstadosPrioridad')->name('tickets.getEstadosPrioridad');
+        Route::get('/tickets/tipo-tarea', 'getTipoTarea')->name('tickets.getTipoTarea');
+        Route::get('/tickets/areas', 'getAreasTicket')->name('tickets.getAreasTicket');
         // detail REST
         Route::get('/tickets/detail/{numero}', 'DetailTicket')->name('tickets.detail');
         Route::get('/tickets/atenciones/{idTicket}', 'DetailAtencionesTicket')->name('tickets.DetailAtencionesTicket');
+        Route::get('/tickets/centros-costo/{idCompania}', 'getCentroCostoTicket')->name('tickets.getCentroCostoTicket');
+        Route::get('/tickets/grupo-corrreos/{idCompania}', 'getGrupoCorreoTicket')->name('tickets.getGrupoCorreoTicket');
+        Route::get('/tickets/persona/', 'getPersona')->name('tickets.getPersona');
+
         // Route::get('/tickets/detail/{numero}', 'DetailTicket')->name('tickets.detail');
         // Route::group(['middleware' => ['role:Administrador']], function () {
         //     Route::get('/tickets/pagination', 'indexPagination')->name('tickets.pagination');
@@ -138,6 +148,13 @@ Route::controller(FacturasElectronicasController::class)->group(function () {
 
     // });
 });
+Route::controller(MonitoreoAgenteController::class)->group(function () {
+    // Modulo detalle Monitoreo
+    Route::get('/sedes', 'getListSede')->name('getListSede');
+     Route::get('/equipos', 'getEquipos')->name('getEquipos');
+
+
+});
 
 Route::controller(MonitoreoController::class)->group(function () {
     // Modulo detalle Monitoreo
@@ -150,7 +167,7 @@ Route::controller(MonitoreoController::class)->group(function () {
     Route::get('/equipos-compania', 'GetEquiposCompania')->name('GetEquiposCompania');
     Route::get('/equipos-oficina', 'GetOficinasCompania')->name('GetOficinasCompania');
     // reporte
-      Route::get('/monitoreo/reporte', 'exportReportMonitoreo')->name('exportReportMonitoreo');
+    Route::get('/monitoreo/reporte', 'exportReportMonitoreo')->name('exportReportMonitoreo');
 });
 
 // Grupo de rutas de autenticación

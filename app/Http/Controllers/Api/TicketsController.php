@@ -2,7 +2,15 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Models\Areas;
+use App\Models\AreasPersona;
+use App\Models\comCentroCosto;
 use App\Models\cybTrabajo;
+use App\Models\Dato;
+use App\Models\GrupoCorreo;
+use App\Models\Maestro;
+use App\Models\Oficina;
+use App\Models\OficinaPersona;
 use Carbon\Carbon;
 use App\Helpers\EstadoHelper;
 use Illuminate\Support\Facades\Auth;
@@ -359,8 +367,38 @@ class TicketsController extends Controller
 
     public function getCompaniaTicket(Request $request)
     {
-        $response = Compania::where('flgEstado', operator: "1")
+        $response = Compania::where('flgEstado', '1')
+            ->where('idCompaniaNodo', 'CYB')
             ->orderBy('idCompania', 'asc')
+            ->get();
+
+        return response()->json($response);
+    }
+
+    public function getOficinaTicket($idCompania)
+    {
+        $response = Oficina::where('flgEstado', '1')
+            ->where('idCompaniaNodo', 'CYB')
+            ->where('idCompania', $idCompania)
+            ->orderBy('idOficina', 'asc')
+            ->get();
+
+        return response()->json($response);
+    }
+
+    public function getOficinaSolicitanteTicket($idOficina)
+    {
+        // Obtener las personas asociadas a la oficina
+        $idPersonas = OficinaPersona::where('idOficina', $idOficina)
+            ->pluck('idPersona');
+
+        //  Obtener datos de personas válidas
+        $response = Persona::select('idPersona', 'nombre', 'apellidos')
+            ->where('flgEstado', '1')
+            ->where('idPersonaPerspectiva', 'CYB')
+            ->where('idPersonaNodo', 'CYB')
+            ->whereIn('idPersona', $idPersonas)
+            ->orderBy('nombre')
             ->get();
 
         return response()->json($response);
@@ -368,10 +406,221 @@ class TicketsController extends Controller
 
     public function getResponsablesTicket(Request $request)
     {
-        $response = Persona::where('flgEstado', operator: "1")
-            ->orderBy('idPersona', 'asc')
+        $user = $request->user();
+
+        $response = Persona::select('idPersona', 'nombre', 'apellidos')
+            ->where('flgEstado', '1')
+            ->where('idPersonaPerspectiva', 'CYB')
+            ->where('idPersonaNodo', 'CYB')
+            ->where('idPersona', $user->idPersona)
             ->get();
 
         return response()->json($response);
+    }
+
+
+    public function getEstadosPrioridad(Request $request)
+    {
+        $response = Maestro::select('idMaestro', 'idTipoMaestro', 'nombre')
+            ->whereIn('idMaestro', [758, 359, 337, 338, 339])
+            ->where('idMaestroNodo', 'CYB')
+            ->where('idNodoPerspectiva', 'CYB')
+
+            ->get();
+
+        return response()->json($response);
+    }
+
+    public function getTipoTarea(Request $request)
+    {
+        $response = [
+            ['id' => 'R', 'nombre' => 'Requerimiento'],
+            ['id' => 'I', 'nombre' => 'Incidente'],
+        ];
+
+        return response()->json($response);
+    }
+
+    // public function getAreasTicket(Request $request)
+    // {
+    //     $response = Areas::select('idArea', 'nombre')
+    //         ->where('idAreaNodo', 'CYB')
+    //         ->where('idCompania', 1)
+    //         ->where('flgEstado', "1")
+
+    //         ->get();
+
+    //     return response()->json($response);
+    // }
+
+    public function getAreasTicket(Request $request)
+    {
+        $user = $request->user();
+
+        // Paso 1: obtener los IDs de áreas del usuario
+        $areasUsuario = AreasPersona::where('idPersona', $user->idPersona)
+            ->pluck('idArea');
+
+        // Paso 2: traer los datos de Areas filtrando solo los IDs del usuario
+        $response = Areas::select('idArea', 'nombre')
+            ->where('idAreaNodo', 'CYB')
+            ->where('idCompania', 1)
+            ->where('flgEstado', '1')
+            ->whereIn('idArea', $areasUsuario)
+            ->get();
+
+        return response()->json($response);
+    }
+
+
+    // public function getCentroCostoTicket($idCompania, $idArea)
+    // {
+    //     $response = comCentroCosto::where('flgEstado', '1')
+    //         ->where('idCompania', $idCompania)
+    //         ->where('idArea', $idArea)
+    //         ->orderBy('nombre')
+    //         ->get();
+
+    //     return response()->json($response);
+    // }
+
+    public function getCentroCostoTicket($idCompania)
+    {
+        $response = comCentroCosto::where('flgEstado', '1')
+            ->where('idCompania', $idCompania)
+            ->where('flgEstado', '1')
+            ->orderBy('nombre')
+            ->get();
+
+        return response()->json($response);
+    }
+
+    public function getGrupoCorreoTicket($idCompania)
+    {
+        $response = GrupoCorreo::where('flgEstado', '1')
+            ->where('idCompania', $idCompania)
+            ->where('flgEstado', '1')
+            ->orderBy('nombre')
+            ->get();
+
+        return response()->json($response);
+    }
+
+
+    public function getPersona(Request $request)
+    {
+        /* ===============================
+           1. Usuario autenticado
+        =============================== */
+        $user = $request->user();
+
+        // 🔍 DEPURACIÓN 1
+
+        // dd($user->toArray());
+
+        /* ===============================
+           2. Obtener PERSONA
+        =============================== */
+        if ($request->filled('idPersona')) {
+
+            $persona = Persona::select('idPersona', 'idPersonaNodo')
+                ->where('idPersona', $request->idPersona)
+                ->where('idPersonaNodo', $request->idPersonaNodo)
+                ->where('flgEstado', '1')
+                ->first();
+
+        } else {
+
+            $persona = Persona::select('idPersona', 'idPersonaNodo')
+                ->where('idPersona', $user->idPersona)
+                ->where('idPersonaNodo', $user->idPersonaNodo)
+                ->where('flgEstado', '1')
+                ->first();
+        }
+
+        // 🔍 DEPURACIÓN 2
+        // Log::info('PERSONA', $persona ? $persona->toArray() : []);
+        // dd($persona);
+
+        if (!$persona) {
+            return response()->json([
+                'estado' => false,
+                'mensaje' => 'Persona no encontrada'
+            ]);
+        }
+
+        $respuesta = $persona->toArray();
+
+        /* ===============================
+           3. Obtener ÁREA desde AreasPersona
+        =============================== */
+        $areaPersona = AreasPersona::select('idArea', 'idAreaNodo')
+            ->where('idPersona', $respuesta['idPersona'])
+            ->where('idPersonaNodo', $respuesta['idPersonaNodo'])
+            ->where('flgEstado', '1')
+            ->first();
+
+        // 🔍 DEPURACIÓN 3
+        // Log::info('AREA_PERSONA', $areaPersona ? $areaPersona->toArray() : []);
+            //   dd($areaPersona);
+
+        if ($areaPersona) {
+            $respuesta['idArea'] = (int) $areaPersona->idArea;
+            $respuesta['idAreaNodo'] = $areaPersona->idAreaNodo;
+        } else {
+            $respuesta['idArea'] = 0;   // ⚠️ INT, NUNCA ''
+            $respuesta['idAreaNodo'] = '';
+        }
+
+        /* ===============================
+           4. DEPURACIÓN FINAL DE PARÁMETROS SP
+        =============================== */
+        $paramsPersona = [
+            'idPersona' => $respuesta['idPersona'],
+            'idPersonaNodo' => $respuesta['idPersonaNodo'],
+        ];
+
+        $paramsArea = [
+            'idArea' => $respuesta['idArea'],
+            'idAreaNodo' => $respuesta['idAreaNodo'],
+        ];
+
+        // Log::info('PARAMS SP PERSONA', $paramsPersona);
+        // Log::info('PARAMS SP AREA', $paramsArea);
+
+        // 👉 Para verlos en pantalla (usa SOLO uno)
+         dd($paramsPersona, $paramsArea);
+
+        /* ===============================
+           5. CORREOS DE LA PERSONA
+        =============================== */
+        $correosPersona = Dato::getListaInfoDato($paramsPersona);
+
+        $respuesta['correoPersona'] = collect($correosPersona)
+            ->where('codigo', 'C')
+            ->pluck('valor')
+            ->implode(',');
+
+        /* ===============================
+           6. CORREOS DEL ÁREA
+        =============================== */
+        $respuesta['correosReporta'] = '';
+
+        if ($respuesta['idArea'] > 0) {
+
+            $correosReporta = Dato::getListaInfoDato($paramsArea);
+
+            $respuesta['correosReporta'] = collect($correosReporta)
+                ->where('codigo', 'C')
+                ->pluck('valor')
+                ->implode(',');
+        }
+
+        /* ===============================
+           7. RESPUESTA FINAL
+        =============================== */
+        // Log::info('RESPUESTA FINAL', $respuesta);
+
+        return response()->json($respuesta);
     }
 }
