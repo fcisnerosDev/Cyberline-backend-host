@@ -41,10 +41,10 @@ class SyncCybernetOldController extends Controller
         return ($v !== null) ? (string) $v : '';
     }
 
-   
-    public function UpdateMonitoreoData()
+
+    public function UpdateMonitoreoData($idNodo = null)
     {
-        $idNodos = $this->getValidNodoIdForCybernetPrimary();
+        $idNodos = $this->getValidNodoIdForCybernetPrimary($idNodo);
 
         if ($idNodos->isEmpty()) {
             return response()->json([
@@ -52,6 +52,8 @@ class SyncCybernetOldController extends Controller
                 "message" => "No se encontraron nodos válidos para la sincronización."
             ], 400);
         }
+
+
 
         $sysNodos = SysNodo::whereIn('idNodo', $idNodos)->get();
         $updatedRecords = [];
@@ -243,18 +245,18 @@ class SyncCybernetOldController extends Controller
 
 
     private function limpiarFlg($valor)
-{
-    // Si viene null, vacío o no numérico → '0'
-    if ($valor === null || $valor === '' || !is_numeric($valor)) {
-        return '0';
+    {
+        // Si viene null, vacío o no numérico → '0'
+        if ($valor === null || $valor === '' || !is_numeric($valor)) {
+            return '0';
+        }
+
+        // Convertir a entero
+        $valor = (int) $valor;
+
+        // Solo permitir '1' o '0' como STRING
+        return ($valor === 1) ? '1' : '0';
     }
-
-    // Convertir a entero
-    $valor = (int) $valor;
-
-    // Solo permitir '1' o '0' como STRING
-    return ($valor === 1) ? '1' : '0';
-}
 
 
     // public function UpdateMonitoreoData()
