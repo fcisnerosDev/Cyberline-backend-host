@@ -865,6 +865,8 @@ class SyncCybernetOldController extends Controller
                     "idNodo" => $nodo->idNodo,
                     "idMonitoreo" => $item['idMonitoreo'],
                     "flgSolucionado" => $flgSolucionado,
+                     "flgStatus" => $item['flgStatus'],
+
                     "fechaSyncHijo" => $fechaSyncHijo->toDateTimeString(),
                     "fechaSyncPadre" => $fechaSyncPadre->toDateTimeString(),
                 ];
