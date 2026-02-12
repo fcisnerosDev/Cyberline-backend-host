@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\Facturacion\Facturas\FacturasElectronicasController;
 use App\Http\Controllers\Api\Facturacion\NotasCredito\NotasCreditoController;
 use App\Http\Controllers\Api\Facturacion\NotasCredito\NotasDebitoController;
+use App\Http\Controllers\Api\HelpdeskMailController;
 use App\Http\Controllers\Api\Monitoreo\MonitoreoAgenteController;
 use App\Http\Controllers\Api\Monitoreo\MonitoreoController;
 use App\Http\Controllers\Api\ReportsController;
@@ -178,3 +179,11 @@ Route::group(['prefix' => 'auth'], function () {
     Route::post('/refresh', [AuthController::class, 'refresh'])->name('refresh');
     Route::post('/me', [AuthController::class, 'me'])->name('me');
 });
+
+
+ Route::controller(HelpdeskMailController::class)->group(function () {
+        Route::get('/inbox/pagination', 'readInbox')->name('readInbox.pagination');
+        Route::get('/bandeja/pagination', 'BandejaLectura')->name('BandejaLectura.pagination');
+
+
+    });
