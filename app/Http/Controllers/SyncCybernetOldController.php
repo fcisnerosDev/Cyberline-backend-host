@@ -20,6 +20,26 @@ use Illuminate\Support\Facades\Redis;
 
 class SyncCybernetOldController extends Controller
 {
+
+    private function limpiarIntNullable($v)
+    {
+        return ($v !== null && $v !== '' && is_numeric($v)) ? (int) $v : null;
+    }
+
+    private function limpiarInt($v)
+    {
+        return ($v !== null && $v !== '' && is_numeric($v)) ? (int) $v : 0;
+    }
+
+    private function limpiarStringNullable($v)
+    {
+        return ($v !== null && $v !== '') ? $v : null;
+    }
+
+    private function limpiarString($v)
+    {
+        return ($v !== null) ? (string) $v : '';
+    }
     public function UpdateMonitoreoData()
     {
         $idNodos = $this->getValidNodoIdForCybernetPrimary();
@@ -99,67 +119,99 @@ class SyncCybernetOldController extends Controller
 
                 // DATOS PREPARADOS CON PREVENCIÓN DE NULOS
                 $datos = [
-                    'idNodoPerspectiva'         => $item['idNodoPerspectiva'] ?? '',
-                    'idSync'                    => $item['idSync'] ?? 0,
-                    'idSyncNodo'                => $item['idSyncNodo'] ?? '',
-                    'idServicio'                => $item['idServicio'] ?? 0,
-                    'idServicioNodo'            => $item['idServicioNodo'] ?? '',
-                    'idEquipo'                  => $item['idEquipo'] ?? 0,
-                    'idEquipoNodo'              => $item['idEquipoNodo'] ?? '',
-                    'idTipoServicio'            => $item['idTipoServicio'] ?? 0,
-                    'idTipoServicioNodo'        => $item['idTipoServicioNodo'] ?? '',
-                    'idIp'                      => $item['idIp'] ?? 0,
-                    'idIpNodo'                  => $item['idIpNodo'] ?? '',
-                    'idFrecuencia'              => $item['idFrecuencia'] ?? 0,
-                    'idFrecuenciaNodo'          => $item['idFrecuenciaNodo'] ?? '',
-                    'idUsuario'                 => $item['idUsuario'] ?? 0,
-                    'idUsuarioNodo'             => $item['idUsuarioNodo'] ?? '',
-                    'dscMonitoreo'              => $item['dscMonitoreo'] ?? '',
-                    'etiqueta'                  => $item['etiqueta'] ?? '', // NO NULL
-                    'numReintentos'             => (int)($item['numReintentos'] ?? 0),
-                    'paramametroScript'         => $item['paramametroScript'] ?? '',
-                    'paramNumPort'              => $item['paramNumPort'] ?? '',
-                    'paramNumPackets'           => (int)($item['paramNumPackets'] ?? 0),
-                    'paramTimeout'              => (int)($item['paramTimeout'] ?? 0),
-                    'paramWarningUmbral'        => (float)($item['paramWarningUmbral'] ?? 0),
-                    'paramCriticalUmbral'       => (float)($item['paramCriticalUmbral'] ?? 0),
-                    'anotacion'                 => $item['anotacion'] ?? '',
-                    'cuentasNotificacion'       => $item['cuentasNotificacion'] ?? '',
-                    'intervaloNotificacion'     => (int)($item['intervaloNotificacion'] ?? 0),
 
+                    // =============================
+                    // IDS (NOT NULL NUMERICOS)
+                    // =============================
+                    'idNodoPerspectiva' => $this->limpiarString($item['idNodoPerspectiva'] ?? ''),
+                    'idSync' => $this->limpiarIntNullable($item['idSync'] ?? null),
+                    'idSyncNodo' => $this->limpiarStringNullable($item['idSyncNodo'] ?? null),
+
+                    'idServicio' => $this->limpiarInt($item['idServicio'] ?? 0),
+                    'idServicioNodo' => $this->limpiarString($item['idServicioNodo'] ?? ''),
+
+                    'idEquipo' => $this->limpiarInt($item['idEquipo'] ?? 0),
+                    'idEquipoNodo' => $this->limpiarString($item['idEquipoNodo'] ?? ''),
+
+                    'idTipoServicio' => $this->limpiarInt($item['idTipoServicio'] ?? 0),
+                    'idTipoServicioNodo' => $this->limpiarString($item['idTipoServicioNodo'] ?? ''),
+
+                    'idIp' => $this->limpiarInt($item['idIp'] ?? 0),
+                    'idIpNodo' => $this->limpiarString($item['idIpNodo'] ?? ''),
+
+                    'idFrecuencia' => $this->limpiarInt($item['idFrecuencia'] ?? 0),
+                    'idFrecuenciaNodo' => $this->limpiarString($item['idFrecuenciaNodo'] ?? ''),
+
+                    'idUsuario' => $this->limpiarInt($item['idUsuario'] ?? 0),
+                    'idUsuarioNodo' => $this->limpiarString($item['idUsuarioNodo'] ?? ''),
+
+                    // =============================
+                    // TEXTOS
+                    // =============================
+                    'dscMonitoreo' => $this->limpiarString($item['dscMonitoreo'] ?? ''),
+                    'etiqueta' => $this->limpiarString($item['etiqueta'] ?? ''),
+                    'numReintentos' => $this->limpiarInt($item['numReintentos'] ?? 0),
+
+                    'paramametroScript' => $this->limpiarStringNullable($item['paramametroScript'] ?? null),
+
+                    // =============================
+                    // PARAMETROS (según tu tabla)
+                    // =============================
+
+                    // INT NULLABLE
+                    'paramNumPort' => $this->limpiarIntNullable($item['paramNumPort'] ?? null),
+
+                    // VARCHAR en BD → NO CASTEAR A INT
+                    'paramNumPackets' => $this->limpiarStringNullable($item['paramNumPackets'] ?? null),
+                    'paramTimeout' => $this->limpiarStringNullable($item['paramTimeout'] ?? null),
+                    'paramWarningUmbral' => $this->limpiarStringNullable($item['paramWarningUmbral'] ?? null),
+                    'paramCriticalUmbral' => $this->limpiarStringNullable($item['paramCriticalUmbral'] ?? null),
+
+                    'anotacion' => $this->limpiarStringNullable($item['anotacion'] ?? null),
+                    'cuentasNotificacion' => $this->limpiarStringNullable($item['cuentasNotificacion'] ?? null),
+
+                    'intervaloNotificacion' => $this->limpiarInt($item['intervaloNotificacion'] ?? 0),
+
+                    // =============================
                     // FECHAS
-                    'fechaUltimaVerificacion'   => $item['fechaUltimaVerificacion'] ?? null,
-                    'fechaUltimoCambio'         => $item['fechaUltimoCambio'] ?? null,
-                    'fechaUltimaNotificacion'   => $item['fechaUltimaNotificacion'] ?? null,
-                    'fechaActivacion'           => $item['fechaActivacion'] ?? null,
-                    'fechaDesactivacion'        => $item['fechaDesactivacion'] ?? null,
+                    // =============================
+                    'fechaUltimaVerificacion' => $item['fechaUltimaVerificacion'] ?? null,
+                    'fechaUltimoCambio' => $item['fechaUltimoCambio'] ?? null,
+                    'fechaUltimaNotificacion' => $item['fechaUltimaNotificacion'] ?? null,
+                    'fechaActivacion' => $item['fechaActivacion'] ?? null,
+                    'fechaDesactivacion' => $item['fechaDesactivacion'] ?? null,
                     'fechaActivacionAutomatica' => $item['fechaActivacionAutomatica'] ?? null,
-                    'fechaModificacion'         => $item['fechaModificacion'] ?? null,
-                    'fechaModificacionStatus'   => $item['fechaModificacionStatus'] ?? null,
-                    'fechaCreacion'             => $item['fechaCreacion'] ?? null,
-                    'fechaRegistro'             => $item['fechaRegistro'] ?? null,
-                    'fechaSyncHijo'             => $fechaSyncHijo,
-                    'fechaSyncPadre'            => $fechaSyncPadre,
+                    'fechaModificacion' => $item['fechaModificacion'] ?? null,
+                    'fechaModificacionStatus' => $item['fechaModificacionStatus'] ?? null,
+                    'fechaCreacion' => $item['fechaCreacion'] ?? now(),
+                    'fechaRegistro' => $item['fechaRegistro'] ?? now(),
+                    'fechaSyncHijo' => $fechaSyncHijo,
+                    'fechaSyncPadre' => $fechaSyncPadre,
 
+                    // =============================
                     // FLAGS
-                    'flgMonitoreoIp'            => $this->limpiarFlg($item['flgMonitoreoIp'] ?? 0),
-                    'flgRevision'               => $this->limpiarFlg($item['flgRevision'] ?? 0),
-                    'flgStatus'                 => $this->limpiarFlg($item['flgStatus'] ?? 0),
-                    'flgStatusControl'          => $this->limpiarFlg($item['flgStatusControl'] ?? 0),
-                    'flgCondicionSolucionado'   => $this->limpiarFlg($item['flgCondicionSolucionado'] ?? 0),
-                    'flgOcultarMonitoreo'       => $this->limpiarFlg($item['flgOcultarMonitoreo'] ?? 0),
-                    'flgSonido'                 => $this->limpiarFlg($item['flgSonido'] ?? 0),
-                    'flgSolucionado'            => $flgSolucionado,
-                    'flgEstado'                 => $this->limpiarFlg($item['flgEstado'] ?? 0),
-                    'flgActivacionAutomatica'   => $this->limpiarFlg($item['flgActivacionAutomatica'] ?? 0),
-                    'flgSync'                   => $this->limpiarFlg($item['flgSync'] ?? 0),
-                    'flgSyncHijo'               => 1,
-                    'flgSyncPadre'              => 1,
-                    'temporal'                  => $this->limpiarFlg($item['temporal'] ?? 0),
+                    // =============================
+                    'flgMonitoreoIp' => $this->limpiarFlg($item['flgMonitoreoIp'] ?? 0),
+                    'flgRevision' => $this->limpiarFlg($item['flgRevision'] ?? 0),
+                    'flgStatus' => $item['flgStatus'] ?? 'O', // ENUM especial
+                    'flgStatusControl' => $this->limpiarInt($item['flgStatusControl'] ?? 0),
+                    'flgCondicionSolucionado' => $this->limpiarFlg($item['flgCondicionSolucionado'] ?? 0),
+                    'flgOcultarMonitoreo' => $this->limpiarFlg($item['flgOcultarMonitoreo'] ?? 0),
+                    'flgSonido' => $this->limpiarFlg($item['flgSonido'] ?? 0),
+                    'flgSolucionado' => $flgSolucionado,
+                    'flgEstado' => $item['flgEstado'] ?? '0',
+                    'flgActivacionAutomatica' => $this->limpiarFlg($item['flgActivacionAutomatica'] ?? 0),
+                    'flgSync' => $this->limpiarFlg($item['flgSync'] ?? 0),
+                    'flgSyncHijo' => '1',
+                    'flgSyncPadre' => '1',
 
-                    // CONTADORES
-                    'cantidad_alertas'          => (int)($item['cantidad_alertas'] ?? 0),
-                    'porcentaje_alertas'        => (float)($item['porcentaje_alertas'] ?? 0),
+                    // =============================
+                    // OTROS
+                    // =============================
+                    'temporal' => $this->limpiarStringNullable($item['temporal'] ?? null),
+
+                    'cantidad_alertas' => $this->limpiarInt($item['cantidad_alertas'] ?? 0),
+                    'porcentaje_alertas' => $this->limpiarInt($item['porcentaje_alertas'] ?? 0),
                 ];
 
                 if ($registroPadre) {
@@ -169,10 +221,10 @@ class SyncCybernetOldController extends Controller
                 }
 
                 $updatedRecords[] = [
-                    "idNodo"         => $sysNodo->idNodo,
-                    "idMonitoreo"    => $item['idMonitoreo'],
+                    "idNodo" => $sysNodo->idNodo,
+                    "idMonitoreo" => $item['idMonitoreo'],
                     "flgSolucionado" => $flgSolucionado,
-                    "fechaSyncHijo"  => $fechaSyncHijo->toDateTimeString(),
+                    "fechaSyncHijo" => $fechaSyncHijo->toDateTimeString(),
                     "fechaSyncPadre" => $fechaSyncPadre->toDateTimeString(),
                 ];
             }
@@ -201,7 +253,7 @@ class SyncCybernetOldController extends Controller
         }
 
         // Convertir a entero
-        $valor = (int)$valor;
+        $valor = (int) $valor;
 
         // Asegurar que solo sea 0 o 1
         return ($valor === 1) ? 1 : 0;
@@ -490,63 +542,63 @@ class SyncCybernetOldController extends Controller
         // Insertar los nuevos registros en la base de datos
         foreach ($monitoreosNuevos as $monitoreo) {
             MonitoreoSecundario::create([
-                'idMonitoreo'               => $monitoreo['idMonitoreo'],
-                'idMonitoreoNodo'           => $monitoreo['idMonitoreoNodo'],
-                'idNodoPerspectiva'         => $monitoreo['idNodoPerspectiva'],
-                'idSync'                    => $monitoreo['idSync'],
-                'idSyncNodo'                => $monitoreo['idSyncNodo'],
-                'idServicio'                => $monitoreo['idServicio'],
-                'idServicioNodo'            => $monitoreo['idServicioNodo'],
-                'idEquipo'                  => $monitoreo['idEquipo'],
-                'idEquipoNodo'              => $monitoreo['idEquipoNodo'],
-                'idTipoServicio'            => $monitoreo['idTipoServicio'],
-                'idTipoServicioNodo'        => $monitoreo['idTipoServicioNodo'],
-                'idIp'                      => $monitoreo['idIp'],
-                'idIpNodo'                  => $monitoreo['idIpNodo'],
-                'idFrecuencia'              => $monitoreo['idFrecuencia'],
-                'idFrecuenciaNodo'          => $monitoreo['idFrecuenciaNodo'],
-                'idUsuario'                 => $monitoreo['idUsuario'],
-                'idUsuarioNodo'             => $monitoreo['idUsuarioNodo'],
-                'dscMonitoreo'              => $monitoreo['dscMonitoreo'],
-                'etiqueta'                  => $monitoreo['etiqueta'],
-                'numReintentos'             => $monitoreo['numReintentos'],
-                'paramametroScript'         => $monitoreo['paramametroScript'],
-                'flgMonitoreoIp'            => $monitoreo['flgMonitoreoIp'],
-                'paramNumPort'              => $monitoreo['paramNumPort'],
-                'paramNumPackets'           => $monitoreo['paramNumPackets'],
-                'paramTimeout'              => $monitoreo['paramTimeout'],
-                'paramWarningUmbral'        => $monitoreo['paramWarningUmbral'],
-                'paramCriticalUmbral'       => $monitoreo['paramCriticalUmbral'],
-                'flgRevision'               => $monitoreo['flgRevision'],
-                'anotacion'                 => $monitoreo['anotacion'],
-                'cuentasNotificacion'       => $monitoreo['cuentasNotificacion'],
-                'intervaloNotificacion'     => $monitoreo['intervaloNotificacion'],
-                'fechaUltimaVerificacion'   => $monitoreo['fechaUltimaVerificacion'],
-                'fechaUltimoCambio'         => $monitoreo['fechaUltimoCambio'],
-                'fechaUltimaNotificacion'   => $monitoreo['fechaUltimaNotificacion'],
-                'fechaActivacion'           => $monitoreo['fechaActivacion'],
-                'fechaDesactivacion'        => $monitoreo['fechaDesactivacion'],
-                'flgStatus'                 => $monitoreo['flgStatus'],
-                'flgStatusControl'          => $monitoreo['flgStatusControl'],
-                'flgCondicionSolucionado'   => $monitoreo['flgCondicionSolucionado'],
-                'flgOcultarMonitoreo'       => $monitoreo['flgOcultarMonitoreo'],
-                'flgSonido'                 => $monitoreo['flgSonido'],
-                'flgSolucionado'            => $monitoreo['flgSolucionado'],
-                'flgEstado'                 => $monitoreo['flgEstado'],
-                'flgActivacionAutomatica'   => $monitoreo['flgActivacionAutomatica'],
+                'idMonitoreo' => $monitoreo['idMonitoreo'],
+                'idMonitoreoNodo' => $monitoreo['idMonitoreoNodo'],
+                'idNodoPerspectiva' => $monitoreo['idNodoPerspectiva'],
+                'idSync' => $monitoreo['idSync'],
+                'idSyncNodo' => $monitoreo['idSyncNodo'],
+                'idServicio' => $monitoreo['idServicio'],
+                'idServicioNodo' => $monitoreo['idServicioNodo'],
+                'idEquipo' => $monitoreo['idEquipo'],
+                'idEquipoNodo' => $monitoreo['idEquipoNodo'],
+                'idTipoServicio' => $monitoreo['idTipoServicio'],
+                'idTipoServicioNodo' => $monitoreo['idTipoServicioNodo'],
+                'idIp' => $monitoreo['idIp'],
+                'idIpNodo' => $monitoreo['idIpNodo'],
+                'idFrecuencia' => $monitoreo['idFrecuencia'],
+                'idFrecuenciaNodo' => $monitoreo['idFrecuenciaNodo'],
+                'idUsuario' => $monitoreo['idUsuario'],
+                'idUsuarioNodo' => $monitoreo['idUsuarioNodo'],
+                'dscMonitoreo' => $monitoreo['dscMonitoreo'],
+                'etiqueta' => $monitoreo['etiqueta'],
+                'numReintentos' => $monitoreo['numReintentos'],
+                'paramametroScript' => $monitoreo['paramametroScript'],
+                'flgMonitoreoIp' => $monitoreo['flgMonitoreoIp'],
+                'paramNumPort' => $monitoreo['paramNumPort'],
+                'paramNumPackets' => $monitoreo['paramNumPackets'],
+                'paramTimeout' => $monitoreo['paramTimeout'],
+                'paramWarningUmbral' => $monitoreo['paramWarningUmbral'],
+                'paramCriticalUmbral' => $monitoreo['paramCriticalUmbral'],
+                'flgRevision' => $monitoreo['flgRevision'],
+                'anotacion' => $monitoreo['anotacion'],
+                'cuentasNotificacion' => $monitoreo['cuentasNotificacion'],
+                'intervaloNotificacion' => $monitoreo['intervaloNotificacion'],
+                'fechaUltimaVerificacion' => $monitoreo['fechaUltimaVerificacion'],
+                'fechaUltimoCambio' => $monitoreo['fechaUltimoCambio'],
+                'fechaUltimaNotificacion' => $monitoreo['fechaUltimaNotificacion'],
+                'fechaActivacion' => $monitoreo['fechaActivacion'],
+                'fechaDesactivacion' => $monitoreo['fechaDesactivacion'],
+                'flgStatus' => $monitoreo['flgStatus'],
+                'flgStatusControl' => $monitoreo['flgStatusControl'],
+                'flgCondicionSolucionado' => $monitoreo['flgCondicionSolucionado'],
+                'flgOcultarMonitoreo' => $monitoreo['flgOcultarMonitoreo'],
+                'flgSonido' => $monitoreo['flgSonido'],
+                'flgSolucionado' => $monitoreo['flgSolucionado'],
+                'flgEstado' => $monitoreo['flgEstado'],
+                'flgActivacionAutomatica' => $monitoreo['flgActivacionAutomatica'],
                 'fechaActivacionAutomatica' => $monitoreo['fechaActivacionAutomatica'],
-                'fechaModificacion'         => $monitoreo['fechaModificacion'],
-                'fechaModificacionStatus'   => $monitoreo['fechaModificacionStatus'],
-                'fechaCreacion'             => $monitoreo['fechaCreacion'],
-                'fechaRegistro'             => $monitoreo['fechaRegistro'],
-                'flgSync'                   => $monitoreo['flgSync'],
-                'flgSyncHijo'               => $monitoreo['flgSyncHijo'],
-                'flgSyncPadre'              => $monitoreo['flgSyncPadre'],
-                'fechaSyncHijo'             => $monitoreo['fechaSyncHijo'],
-                'fechaSyncPadre'            => $monitoreo['fechaSyncPadre'],
-                'temporal'                  => $monitoreo['temporal'],
-                'cantidad_alertas'          => $monitoreo['cantidad_alertas'],
-                'porcentaje_alertas'        => $monitoreo['porcentaje_alertas'],
+                'fechaModificacion' => $monitoreo['fechaModificacion'],
+                'fechaModificacionStatus' => $monitoreo['fechaModificacionStatus'],
+                'fechaCreacion' => $monitoreo['fechaCreacion'],
+                'fechaRegistro' => $monitoreo['fechaRegistro'],
+                'flgSync' => $monitoreo['flgSync'],
+                'flgSyncHijo' => $monitoreo['flgSyncHijo'],
+                'flgSyncPadre' => $monitoreo['flgSyncPadre'],
+                'fechaSyncHijo' => $monitoreo['fechaSyncHijo'],
+                'fechaSyncPadre' => $monitoreo['fechaSyncPadre'],
+                'temporal' => $monitoreo['temporal'],
+                'cantidad_alertas' => $monitoreo['cantidad_alertas'],
+                'porcentaje_alertas' => $monitoreo['porcentaje_alertas'],
             ]);
         }
 
@@ -581,30 +633,30 @@ class SyncCybernetOldController extends Controller
         // Insertar los nuevos registros en la base de datos
         foreach ($ServiciosNuevos as $servicio) {
             ServicioSecundario::create([
-                'idServicio'         => $servicio['idServicio'],
-                'idServicioNodo'     => $servicio['idServicioNodo'],
-                'idNodoPerspectiva'  => $servicio['idNodoPerspectiva'],
+                'idServicio' => $servicio['idServicio'],
+                'idServicioNodo' => $servicio['idServicioNodo'],
+                'idNodoPerspectiva' => $servicio['idNodoPerspectiva'],
                 'idSync' => $servicio['idSync'] ?? 0,
                 'IdNodoSync' => $servicio['IdNodoSync'] ?? '',
-                'idEquipo'           => $servicio['idEquipo'],
-                'idEquipoNodo'       => $servicio['idEquipoNodo'],
-                'idTipoServicio'     => $servicio['idTipoServicio'],
+                'idEquipo' => $servicio['idEquipo'],
+                'idEquipoNodo' => $servicio['idEquipoNodo'],
+                'idTipoServicio' => $servicio['idTipoServicio'],
                 'idTipoServicioNodo' => $servicio['idTipoServicioNodo'],
-                'idIp'               => $servicio['idIp'],
-                'idIpNodo'           => $servicio['idIpNodo'],
-                'puerto'             => $servicio['puerto'],
-                'fechaInicio'        => $servicio['fechaInicio'],
+                'idIp' => $servicio['idIp'],
+                'idIpNodo' => $servicio['idIpNodo'],
+                'puerto' => $servicio['puerto'],
+                'fechaInicio' => $servicio['fechaInicio'],
                 'fechaTermino' => !empty($servicio['fechaTermino']) ? $servicio['fechaTermino'] : now(),
-                'flgEstado'          => $servicio['flgEstado'],
-                'fechaCreacion'      => $servicio['fechaCreacion'],
-                'fechaRegistro'      => $servicio['fechaRegistro'],
-                'fechaModificacion'  => $servicio['fechaModificacion'],
-                'flgSync'            => $servicio['flgSync'],
-                'flgSyncHijo'        => $servicio['flgSyncHijo'],
-                'flgSyncPadre'       => $servicio['flgSyncPadre'],
-                'fechaSyncHijo'      => $servicio['fechaSyncHijo'],
-                'fechaSyncPadre'     => $servicio['fechaSyncPadre'],
-                'temporal'           => $servicio['temporal'],
+                'flgEstado' => $servicio['flgEstado'],
+                'fechaCreacion' => $servicio['fechaCreacion'],
+                'fechaRegistro' => $servicio['fechaRegistro'],
+                'fechaModificacion' => $servicio['fechaModificacion'],
+                'flgSync' => $servicio['flgSync'],
+                'flgSyncHijo' => $servicio['flgSyncHijo'],
+                'flgSyncPadre' => $servicio['flgSyncPadre'],
+                'fechaSyncHijo' => $servicio['fechaSyncHijo'],
+                'fechaSyncPadre' => $servicio['fechaSyncPadre'],
+                'temporal' => $servicio['temporal'],
             ]);
         }
 
