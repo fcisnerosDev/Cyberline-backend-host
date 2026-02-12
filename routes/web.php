@@ -41,8 +41,16 @@ Route::get('/verificar-conexion-nodo-padre', [InformarConexionController::class,
 Route::get('/replicar-data-conexion-padre', [InformarConexionController::class, 'replicarDatosConexion']);
 
 // Cybernet Old v6
-Route::get( '/update-monitoreo/{idNodo?}', [SyncCybernetOldController::class, 'UpdateMonitoreoData']
+Route::get(
+    '/update-monitoreo/{idNodo?}',
+    [SyncCybernetOldController::class, 'UpdateMonitoreoData']
 );
+
+Route::get(
+    '/ip-sec-update-monitoreo/{idNodo?}',
+    [SyncCybernetOldController::class, 'updateMonitoreoDataIpsec']
+);
+
 Route::get('/recover-monitoreo/{idNodo?}', [SyncCybernetOldController::class, 'DataMonitoreos']);
 
 

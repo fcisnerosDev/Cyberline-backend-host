@@ -6,6 +6,7 @@ use App\Models\Equipo;
 use App\Models\Frecuencia;
 use App\Models\Ip;
 use App\Models\Maestro;
+use App\Models\SysIpsecNode;
 use Illuminate\Support\Str;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
@@ -701,6 +702,182 @@ class SyncCybernetOldController extends Controller
 
 
     //Redis
+    public function updateMonitoreoDataIpsec($idNodo = null)
+    {
+        // Traer solo nodos activos (flgEstado = 1) y listos para sincronizar
+        $query = SysIpsecNode::where('flgEstado', '1')->listosParaSync();
+
+        if ($idNodo) {
+            $query->where('idNodo', $idNodo);
+        }
+
+        $sysNodos = $query->get();
+
+        if ($sysNodos->isEmpty()) {
+            return response()->json([
+                "status" => "error",
+                "message" => "No se encontraron nodos activos para la sincronización."
+            ], 400);
+        }
+
+        $updatedRecords = [];
+
+        foreach ($sysNodos as $nodo) {
+            $url = rtrim($nodo->getBaseUrlAttribute(), '/') . '/sync.php';
+
+            try {
+                $response = Http::timeout($nodo->timeout ?? 15)->get($url);
+            } catch (\Exception $e) {
+                // Nodo temporalmente desconectado
+                $nodo->update([
+                    'flgConexion' => '0',
+                    'fechaConexion' => now(),
+                    'mensajeMonitoreo' => $e->getMessage(),
+                    'fechaVerificacionMonitoreo' => now(),
+                ]);
+
+                echo "Error HTTP en {$nodo->idNodo}: " . $e->getMessage() . PHP_EOL;
+                continue;
+            }
+
+            if (!$response->successful()) {
+                $nodo->update([
+                    'flgConexion' => '0',
+                    'fechaConexion' => now(),
+                    'mensajeMonitoreo' => "HTTP Error: " . $response->status(),
+                    'fechaVerificacionMonitoreo' => now(),
+                ]);
+
+                echo "Fallo al obtener datos de $url - Código: " . $response->status() . PHP_EOL;
+                continue;
+            }
+
+            $data = $response->json();
+
+            // Nodo conectado correctamente
+            $nodo->update([
+                'flgConexion' => '1',
+                'fechaConexion' => now(),
+                'mensajeMonitoreo' => 'Conectado correctamente',
+                'fechaVerificacionMonitoreo' => now(),
+                'flgSyncHijo' => '1'
+            ]);
+
+            DB::statement('SET @DISABLE_TRIGGER = 1;');
+
+            foreach ($data['data'] as $item) {
+                // Limpieza de fechas
+                foreach ($item as $key => $value) {
+                    if (Str::startsWith($key, 'fecha')) {
+                        $item[$key] = $this->limpiarFecha($value);
+                    }
+                }
+
+                // Buscar registro existente
+                $registroPadre = DB::table('monMonitoreo')
+                    ->where('idMonitoreo', $item['idMonitoreo'])
+                    ->first();
+
+                // Mantener flgSolucionado si ya estaba
+                $flgSolucionado = $this->limpiarFlg($item['flgSolucionado'] ?? 0);
+                if ($registroPadre && $registroPadre->flgSolucionado === 1) {
+                    $flgSolucionado = 1;
+                }
+
+                // Manejo de fechas de sincronización
+                $fechaSyncHijo = $this->limpiarFecha($item['fechaSyncHijo'] ?? null)
+                    ? \Carbon\Carbon::parse($item['fechaSyncHijo'])
+                    : now();
+                $fechaSyncPadre = now();
+                if ($fechaSyncPadre->lessThanOrEqualTo($fechaSyncHijo)) {
+                    $fechaSyncPadre = $fechaSyncHijo->copy()->addSeconds(2);
+                }
+
+                // Datos preparados con prevención de nulos
+                $datos = [
+                    'idMonitoreoNodo' => $this->limpiarString($item['idMonitoreoNodo'] ?? ''),
+                    'idNodoPerspectiva' => $this->limpiarString($item['idNodoPerspectiva'] ?? ''),
+                    'idSync' => $this->limpiarIntNullable($item['idSync'] ?? null),
+                    'idSyncNodo' => $this->limpiarStringNullable($item['idSyncNodo'] ?? null),
+                    'idServicio' => $this->limpiarInt($item['idServicio'] ?? 0),
+                    'idServicioNodo' => $this->limpiarString($item['idServicioNodo'] ?? ''),
+                    'idEquipo' => $this->limpiarInt($item['idEquipo'] ?? 0),
+                    'idEquipoNodo' => $this->limpiarString($item['idEquipoNodo'] ?? ''),
+                    'idTipoServicio' => $this->limpiarInt($item['idTipoServicio'] ?? 0),
+                    'idTipoServicioNodo' => $this->limpiarString($item['idTipoServicioNodo'] ?? ''),
+                    'idIp' => $this->limpiarInt($item['idIp'] ?? 0),
+                    'idIpNodo' => $this->limpiarString($item['idIpNodo'] ?? ''),
+                    'idFrecuencia' => $this->limpiarInt($item['idFrecuencia'] ?? 0),
+                    'idFrecuenciaNodo' => $this->limpiarString($item['idFrecuenciaNodo'] ?? ''),
+                    'idUsuario' => $this->limpiarInt($item['idUsuario'] ?? 0),
+                    'idUsuarioNodo' => $this->limpiarString($item['idUsuarioNodo'] ?? ''),
+                    'dscMonitoreo' => $this->limpiarString($item['dscMonitoreo'] ?? ''),
+                    'etiqueta' => $this->limpiarString($item['etiqueta'] ?? ''),
+                    'numReintentos' => $this->limpiarInt($item['numReintentos'] ?? 0),
+                    'paramametroScript' => $this->limpiarString($item['paramametroScript'] ?? ''),
+                    'flgMonitoreoIp' => $this->limpiarString($item['flgMonitoreoIp'] ?? '0'),
+                    'paramNumPort' => $this->limpiarIntNullable($item['paramNumPort'] ?? null),
+                    'paramNumPackets' => $this->limpiarStringNullable($item['paramNumPackets'] ?? null),
+                    'paramTimeout' => $this->limpiarStringNullable($item['paramTimeout'] ?? null),
+                    'paramWarningUmbral' => $this->limpiarStringNullable($item['paramWarningUmbral'] ?? null),
+                    'paramCriticalUmbral' => $this->limpiarStringNullable($item['paramCriticalUmbral'] ?? null),
+                    'flgRevision' => $this->limpiarString($item['flgRevision'] ?? '0'),
+                    'anotacion' => $this->limpiarString($item['anotacion'] ?? ''),
+                    'cuentasNotificacion' => $this->limpiarString($item['cuentasNotificacion'] ?? ''),
+                    'intervaloNotificacion' => $this->limpiarInt($item['intervaloNotificacion'] ?? 0),
+                    'fechaUltimaVerificacion' => $this->limpiarFecha($item['fechaUltimaVerificacion'] ?? null),
+                    'fechaUltimoCambio' => $this->limpiarFecha($item['fechaUltimoCambio'] ?? null),
+                    'fechaUltimaNotificacion' => $this->limpiarFecha($item['fechaUltimaNotificacion'] ?? null),
+                    'fechaActivacion' => $this->limpiarFecha($item['fechaActivacion'] ?? null),
+                    'fechaDesactivacion' => $this->limpiarFecha($item['fechaDesactivacion'] ?? null),
+                    'flgStatus' => $this->limpiarString($item['flgStatus'] ?? 'O'),
+                    'flgCondicionSolucionado' => $this->limpiarFlg($item['flgCondicionSolucionado'] ?? 0),
+                    'flgSonido' => $this->limpiarFlg($item['flgSonido'] ?? 0),
+                    'flgSolucionado' => $flgSolucionado,
+                    'flgEstado' => $this->limpiarString($item['flgEstado'] ?? '1'),
+                    'flgActivacionAutomatica' => $this->limpiarString($item['flgActivacionAutomatica'] ?? '1'),
+                    'fechaActivacionAutomatica' => $this->limpiarFecha($item['fechaActivacionAutomatica'] ?? null),
+                    'fechaModificacion' => $this->limpiarFecha($item['fechaModificacion'] ?? null),
+                    'fechaModificacionStatus' => $this->limpiarFecha($item['fechaModificacionStatus'] ?? null),
+                    'fechaCreacion' => $this->limpiarFecha($item['fechaCreacion'] ?? null),
+                    'fechaRegistro' => $this->limpiarFecha($item['fechaRegistro'] ?? null),
+                    'flgSync' => $this->limpiarString($item['flgSync'] ?? '0'),
+                    'flgSyncHijo' => $this->limpiarString($item['flgSyncHijo'] ?? '0'),
+                    'flgSyncPadre' => $this->limpiarString($item['flgSyncPadre'] ?? '0'),
+                    'fechaSyncHijo' => $fechaSyncHijo,
+                    'fechaSyncPadre' => $fechaSyncPadre,
+                    'temporal' => $this->limpiarString($item['temporal'] ?? null),
+                    'cantidad_alertas' => $this->limpiarInt($item['cantidad_alertas'] ?? 0),
+                    'porcentaje_alertas' => $this->limpiarInt($item['porcentaje_alertas'] ?? 0),
+                    'codigoGrupo' => $this->limpiarString($item['codigoGrupo'] ?? ''),
+                ];
+
+
+                if ($registroPadre) {
+                    DB::table('monMonitoreo')
+                        ->where('idMonitoreo', $registroPadre->idMonitoreo)
+                        ->update($datos);
+                } else {
+                    DB::table('monMonitoreo')
+                        ->insert(array_merge(['idMonitoreo' => $item['idMonitoreo']], $datos));
+                }
+
+                $updatedRecords[] = [
+                    "idNodo" => $nodo->idNodo,
+                    "idMonitoreo" => $item['idMonitoreo'],
+                    "flgSolucionado" => $flgSolucionado,
+                    "fechaSyncHijo" => $fechaSyncHijo->toDateTimeString(),
+                    "fechaSyncPadre" => $fechaSyncPadre->toDateTimeString(),
+                ];
+            }
+        }
+
+        return response()->json([
+            "status" => "success",
+            "updated" => $updatedRecords
+        ]);
+    }
+
 
 
 }
