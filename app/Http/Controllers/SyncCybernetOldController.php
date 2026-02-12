@@ -40,6 +40,8 @@ class SyncCybernetOldController extends Controller
     {
         return ($v !== null) ? (string) $v : '';
     }
+
+   
     public function UpdateMonitoreoData()
     {
         $idNodos = $this->getValidNodoIdForCybernetPrimary();
@@ -241,23 +243,18 @@ class SyncCybernetOldController extends Controller
 
 
     private function limpiarFlg($valor)
-    {
-        // Si viene vacío, null o no numérico => 0
-        if ($valor === null || $valor === '' || !is_numeric($valor)) {
-            return 0;
-        }
-
-        // Si viene booleano => convertir a 0/1
-        if (is_bool($valor)) {
-            return $valor ? 1 : 0;
-        }
-
-        // Convertir a entero
-        $valor = (int) $valor;
-
-        // Asegurar que solo sea 0 o 1
-        return ($valor === 1) ? 1 : 0;
+{
+    // Si viene null, vacío o no numérico → '0'
+    if ($valor === null || $valor === '' || !is_numeric($valor)) {
+        return '0';
     }
+
+    // Convertir a entero
+    $valor = (int) $valor;
+
+    // Solo permitir '1' o '0' como STRING
+    return ($valor === 1) ? '1' : '0';
+}
 
 
     // public function UpdateMonitoreoData()
