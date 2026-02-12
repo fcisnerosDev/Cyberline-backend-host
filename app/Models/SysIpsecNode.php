@@ -89,9 +89,9 @@ class SysIpsecNode extends Model
     {
         $url = rtrim($this->urlWs, '/');
 
-        if ($this->puerto) {
-            return $url . ':' . $this->puerto;
-        }
+        // if ($this->puerto) {
+        //     return $url . ':' . $this->puerto;
+        // }
 
         return $url;
     }
