@@ -735,7 +735,6 @@ class SyncCybernetOldController extends Controller
                     'mensajeMonitoreo' => $e->getMessage(),
                     'fechaVerificacionMonitoreo' => now(),
                 ]);
-
                 echo "Error HTTP en {$nodo->idNodo}: " . $e->getMessage() . PHP_EOL;
                 continue;
             }
@@ -747,7 +746,6 @@ class SyncCybernetOldController extends Controller
                     'mensajeMonitoreo' => "HTTP Error: " . $response->status(),
                     'fechaVerificacionMonitoreo' => now(),
                 ]);
-
                 echo "Fallo al obtener datos de $url - Código: " . $response->status() . PHP_EOL;
                 continue;
             }
@@ -773,14 +771,20 @@ class SyncCybernetOldController extends Controller
                     }
                 }
 
-                // Buscar registro existente
+                // Buscar registro existente usando PK compuesta
                 $registroPadre = DB::table('monMonitoreo')
                     ->where('idMonitoreo', $item['idMonitoreo'])
+                    ->where('idMonitoreoNodo', $item['idMonitoreoNodo'])
                     ->first();
+
+                if (!$registroPadre) {
+                    echo "Registro {$item['idMonitoreo']} - {$item['idMonitoreoNodo']} no existe, se omite.\n";
+                    continue; // No se crea registro nuevo
+                }
 
                 // Mantener flgSolucionado si ya estaba
                 $flgSolucionado = $this->limpiarFlg($item['flgSolucionado'] ?? 0);
-                if ($registroPadre && $registroPadre->flgSolucionado === 1) {
+                if ($registroPadre->flgSolucionado === 1) {
                     $flgSolucionado = 1;
                 }
 
@@ -795,7 +799,6 @@ class SyncCybernetOldController extends Controller
 
                 // Datos preparados con prevención de nulos
                 $datos = [
-                    'idMonitoreoNodo' => $this->limpiarString($item['idMonitoreoNodo'] ?? ''),
                     'idNodoPerspectiva' => $this->limpiarString($item['idNodoPerspectiva'] ?? ''),
                     'idSync' => $this->limpiarIntNullable($item['idSync'] ?? null),
                     'idSyncNodo' => $this->limpiarStringNullable($item['idSyncNodo'] ?? null),
@@ -852,15 +855,11 @@ class SyncCybernetOldController extends Controller
                     'codigoGrupo' => $this->limpiarString($item['codigoGrupo'] ?? ''),
                 ];
 
-
-                if ($registroPadre) {
-                    DB::table('monMonitoreo')
-                        ->where('idMonitoreo', $registroPadre->idMonitoreo)
-                        ->update($datos);
-                } else {
-                    DB::table('monMonitoreo')
-                        ->insert(array_merge(['idMonitoreo' => $item['idMonitoreo']], $datos));
-                }
+                // Actualizar solo si existe
+                DB::table('monMonitoreo')
+                    ->where('idMonitoreo', $registroPadre->idMonitoreo)
+                    ->where('idMonitoreoNodo', $registroPadre->idMonitoreoNodo)
+                    ->update($datos);
 
                 $updatedRecords[] = [
                     "idNodo" => $nodo->idNodo,
