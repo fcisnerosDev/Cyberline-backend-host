@@ -107,58 +107,103 @@ class TicketsController extends Controller
 
     public function indexPagination(Request $request)
     {
-        // Obtener usuario autenticado
         $user = auth()->user();
-        $idPersona = $user->idPersona ?? $request->user()->idPersona ?? null;
-        $idPersonaNodo = $user->idPersonaNodo ?? $request->user()->idPersonaNodo ?? null;
 
-        // Consulta base
-        $query = Ticket::query()->orderBy('idTicket', 'desc');
+        $idPersona = $user->idPersona ?? null;
+        $idPersonaNodo = $user->idPersonaNodo ?? null;
 
-        // Si se envía un idUsuarioResponsable, usarlo como filtro
-        if ($request->filled('idUsuarioResponsable')) {
-            $query->where('idUsuarioResponsable', $request->input('idUsuarioResponsable'));
-        }
-        // Si no se envía, filtrar por el usuario autenticado
-        elseif ($idPersona && $idPersonaNodo) {
-            $query->where(function ($q) use ($idPersona, $idPersonaNodo) {
-                $q->where('idUsuarioResponsable', $idPersona)
+        /*
+        |--------------------------------------------------------------------------
+        | Query Base + Scope por Perspectiva
+        |--------------------------------------------------------------------------
+        */
+        $query = Ticket::query()
+            ->companiaPerspectiva($user)
+            ->orderBy('idTicket', 'desc');
+
+        /*
+        |--------------------------------------------------------------------------
+        | Filtro adicional SOLO para usuarios internos
+        |--------------------------------------------------------------------------
+        */
+        if ($user->idPersonaPerspectiva !== 'CSF') {
+
+            if ($request->filled('idUsuarioResponsable')) {
+
+                $query->where('idUsuarioResponsable', $request->input('idUsuarioResponsable'));
+
+            } elseif ($idPersona && $idPersonaNodo) {
+
+                $query->where('idUsuarioResponsable', $idPersona)
                     ->where('idUsuarioResponsableNodo', $idPersonaNodo);
-            });
+            }
         }
 
-        // Filtro por número exacto
+        /*
+        |--------------------------------------------------------------------------
+        | Filtro por número
+        |--------------------------------------------------------------------------
+        */
         if ($numero = $request->query('numero')) {
             $query->where('numero', $numero);
         }
 
-        // Filtro por compañía solicitante
-        if ($request->filled('idCompaniaSolicitante')) {
-            $query->where('idCompaniaSolicitante', $request->input('idCompaniaSolicitante'));
-        }
-
-        // Filtro por estado
+        /*
+        |--------------------------------------------------------------------------
+        | Filtro por estado
+        |--------------------------------------------------------------------------
+        */
         if ($flgStatus = $request->query('flgStatus')) {
-            $flgStatusArray = is_array($flgStatus) ? $flgStatus : explode(',', $flgStatus);
+
+            $flgStatusArray = is_array($flgStatus)
+                ? $flgStatus
+                : explode(',', $flgStatus);
+
             $query->whereIn('flgStatus', $flgStatusArray);
         }
 
-        // Paginación
+        /*
+        |--------------------------------------------------------------------------
+        | Paginación
+        |--------------------------------------------------------------------------
+        */
         $response = $query->paginate(20);
 
-        // Enriquecer datos
+        /*
+        |--------------------------------------------------------------------------
+        | Enriquecer datos
+        |--------------------------------------------------------------------------
+        */
         foreach ($response as $ticket) {
+
             $responsable = PersonaHelper::getResponsableById($ticket->idUsuarioResponsable);
-            $ticket->responsable = $responsable ? $responsable->nombre . ' ' . $responsable->apellidos : 'No disponible';
+            $ticket->responsable = $responsable
+                ? $responsable->nombre . ' ' . $responsable->apellidos
+                : 'No disponible';
 
-            $solicitante = PersonaHelper::getSolicitanteById($ticket->idUsuarioSolicitante, $ticket->idUsuarioSolicitanteNodo);
-            $ticket->solicitante = $solicitante ? $solicitante->nombre . ' ' . $solicitante->apellidos : 'No disponible';
+            $solicitante = PersonaHelper::getSolicitanteById(
+                $ticket->idUsuarioSolicitante,
+                $ticket->idUsuarioSolicitanteNodo
+            );
 
-            $compania = companiaHelper::getCompaniaById($ticket->idTicketNodo, $ticket->idCompaniaSolicitante);
-            $ticket->CompaniaSolicitante = $compania ? $compania->nombreCorto : 'No disponible';
+            $ticket->solicitante = $solicitante
+                ? $solicitante->nombre . ' ' . $solicitante->apellidos
+                : 'No disponible';
+
+            $compania = companiaHelper::getCompaniaById(
+                $ticket->idTicketNodo,
+                $ticket->idCompaniaSolicitante
+            );
+
+            $ticket->CompaniaSolicitante = $compania
+                ? $compania->nombreCorto
+                : 'No disponible';
 
             $oficina = oficinaHelper::getoficinaById($ticket->idOficina);
-            $ticket->CompaniaSolicitanteOficina = $oficina ? $oficina->nombre : 'No disponible';
+
+            $ticket->CompaniaSolicitanteOficina = $oficina
+                ? $oficina->nombre
+                : 'No disponible';
 
             $ticket->estadoNombre = EstadoHelper::getNombreEstado($ticket->idEstado);
         }
@@ -170,8 +215,12 @@ class TicketsController extends Controller
 
 
 
+
+
+
     public function DetailTicket($numero)
     {
+        $user = auth()->user();
         try {
             $ticket = Ticket::where('numero', $numero)->first();
 
@@ -228,8 +277,10 @@ class TicketsController extends Controller
             }
 
             // --- 3. Procesar atenciones con sus trabajos asociados ---
+
             $atenciones = cybAtencion::where('idTicket', $ticket->idTicket)
                 ->where('flgEstado', '1')
+                ->visibleParaUsuario($user)
                 ->orderBy('fechaCreacion', 'asc')
                 ->get();
 
@@ -277,10 +328,14 @@ class TicketsController extends Controller
 
     public function DetailAtencionesTicket($idTicket)
     {
+        $user = auth()->user();
         try {
             // Buscar atenciones activas del ticket
+
+
             $query = cybAtencion::where('idTicket', $idTicket)
                 ->where('flgEstado', '1')
+                ->visibleParaUsuario($user)
                 ->orderBy('fechaCreacion', 'desc');
 
             if (!$query->exists()) {
@@ -562,7 +617,7 @@ class TicketsController extends Controller
 
         // 🔍 DEPURACIÓN 3
         // Log::info('AREA_PERSONA', $areaPersona ? $areaPersona->toArray() : []);
-            //   dd($areaPersona);
+        //   dd($areaPersona);
 
         if ($areaPersona) {
             $respuesta['idArea'] = (int) $areaPersona->idArea;
@@ -589,7 +644,7 @@ class TicketsController extends Controller
         // Log::info('PARAMS SP AREA', $paramsArea);
 
         // 👉 Para verlos en pantalla (usa SOLO uno)
-         dd($paramsPersona, $paramsArea);
+        dd($paramsPersona, $paramsArea);
 
         /* ===============================
            5. CORREOS DE LA PERSONA

@@ -9,4 +9,16 @@ class Ticket extends Model
 {
     use HasFactory;
     protected $table = 'cybTicket';
+
+    public function scopeCompaniaPerspectiva($query, $user)
+{
+    if (!$user) {
+        return $query;
+    }
+
+    return match ($user->idPersonaPerspectiva) {
+        'CSF' => $query->where('idCompaniaSolicitante', 870),
+        default => $query
+    };
+}
 }
