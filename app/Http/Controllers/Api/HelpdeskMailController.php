@@ -268,7 +268,7 @@ class HelpdeskMailController extends Controller
     {
         $storageUrl = env('STORAGE_URL'); // toma la URL desde .env
         $messages = HelpdeskMessage::with(['toRecipients', 'ccRecipients', 'attachments'])
-            ->orderBy('date', 'desc')
+            ->orderBy('created_at', 'desc')
             ->paginate(20);
 
         $messages->getCollection()->transform(function ($message) use ($storageUrl) {

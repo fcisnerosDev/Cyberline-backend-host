@@ -11,9 +11,23 @@ class cybAtencion extends Model
     protected $table = 'cybAtencion';
     protected $fillable = [
         'idTicket',
-        'flgEstado'
+        'flgEstado',
+        'flgMostrar'
 
     ];
 
     public $timestamps = false;
+
+    public function scopeVisibleParaUsuario($query, $user)
+    {
+        if (!$user) {
+            return $query;
+        }
+
+        if ($user->idPersonaPerspectiva === 'CSF') {
+            return $query->where('flgMostrar', '1');
+        }
+
+        return $query;
+    }
 }
