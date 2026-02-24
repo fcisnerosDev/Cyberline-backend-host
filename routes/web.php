@@ -46,6 +46,11 @@ Route::get(
     [SyncCybernetOldController::class, 'UpdateMonitoreoData']
 );
 
+Route::get(
+    '/actualizar-nodo',
+    [SyncCybernetOldController::class, 'actualizarNodo']
+);
+
 // Route::get(
 //     '/ip-sec-update-monitoreo/{idNodo?}',
 //     [SyncCybernetOldController::class, 'updateMonitoreoDataIpsec']

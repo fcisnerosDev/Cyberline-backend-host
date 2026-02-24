@@ -889,6 +889,11 @@ class SyncCybernetOldController extends Controller
         ]);
     }
 
-
+    public function actualizarNodo()
+    {
+        return response()->json(
+            SysNodo::actualizarNodoRemoto()
+        );
+    }
 
 }
