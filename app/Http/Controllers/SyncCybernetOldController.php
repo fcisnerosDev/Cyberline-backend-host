@@ -130,17 +130,20 @@ class SyncCybernetOldController extends Controller
                 if ($registroPadre) {
 
                     $flgStatusAnterior = $registroPadre->flgStatus;
-                    $flgRevision = $registroPadre->flgRevision; // mantener valor actual
+
+                    $flgRevision = $registroPadre->flgRevision ?? '0';
 
                     // SOLO si cambia de C → O
                     if ($flgStatusAnterior === 'C' && $flgStatusNuevo === 'O') {
-                        $flgRevision = 0;
+                        $flgRevision = '0';
                     }
 
                 } else {
-                    $flgRevision = 0;
+                    $flgRevision = '0';
                 }
 
+                // NORMALIZAR A ENUM STRING
+                $flgRevision = ($flgRevision == '1') ? '1' : '0';
                 // =============================
                 // DATOS A GUARDAR
                 // =============================
