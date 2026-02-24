@@ -54,12 +54,11 @@ class SyncCybernetOldController extends Controller
             ], 400);
         }
 
-
-
         $sysNodos = SysNodo::whereIn('idNodo', $idNodos)->get();
         $updatedRecords = [];
 
         foreach ($sysNodos as $sysNodo) {
+
             $url = rtrim($sysNodo->urlWs, '/') . "/sync.php";
 
             try {
@@ -79,14 +78,18 @@ class SyncCybernetOldController extends Controller
 
             foreach ($data['data'] as $item) {
 
-                // LIMPIEZA DE FECHAS INVÁLIDAS
+                // =============================
+                // LIMPIEZA DE FECHAS
+                // =============================
                 foreach ($item as $key => $value) {
                     if (Str::startsWith($key, 'fecha')) {
                         $item[$key] = $this->limpiarFecha($value);
                     }
                 }
 
-                // BUSCAR REGISTRO EXISTENTE
+                // =============================
+                // BUSCAR REGISTRO PADRE
+                // =============================
                 $registroPadre = DB::table('monMonitoreo')
                     ->where('idMonitoreo', $item['idMonitoreo'])
                     ->orWhere(function ($q) use ($item) {
@@ -97,37 +100,53 @@ class SyncCybernetOldController extends Controller
                     })
                     ->first();
 
-                // MANTENER flgSolucionado = 1 SI YA ESTABA RESUELTO
+                // =============================
+                // PROTEGER FLG SOLUCIONADO
+                // =============================
                 $flgSolucionado = $this->limpiarFlg($item['flgSolucionado'] ?? 0);
-                if ($registroPadre && $registroPadre->flgSolucionado === 1) {
+
+                if ($registroPadre && $registroPadre->flgSolucionado == 1) {
                     $flgSolucionado = 1;
                 }
 
-                // IGNORAR CAMPOS VACÍOS O NULL PARA NO SOBRESCRIBIR
-                if ($registroPadre) {
-                    foreach ($item as $k => $v) {
-                        if ($v === null || $v === '' || $v === '0000-00-00 00:00:00') {
-                            unset($item[$k]);
-                        }
-                    }
-                }
-
-                // MANEJO DE FECHAS DE SINCRONIZACIÓN
+                // =============================
+                // MANEJO DE FECHAS SYNC
+                // =============================
                 $fechaSyncHijo = $this->limpiarFecha($item['fechaSyncHijo'] ?? null)
                     ? \Carbon\Carbon::parse($item['fechaSyncHijo'])
                     : now();
+
                 $fechaSyncPadre = now();
 
                 if ($fechaSyncPadre->lessThanOrEqualTo($fechaSyncHijo)) {
                     $fechaSyncPadre = $fechaSyncHijo->copy()->addSeconds(2);
                 }
 
-                // DATOS PREPARADOS CON PREVENCIÓN DE NULOS
+                // =============================
+                // CONTROL INTELIGENTE DE REVISION
+                // =============================
+                $flgStatusNuevo = $item['flgStatus'] ?? 'O';
+
+                if ($registroPadre) {
+
+                    $flgStatusAnterior = $registroPadre->flgStatus;
+                    $flgRevision = $registroPadre->flgRevision; // mantener valor actual
+
+                    // SOLO si cambia de C → O
+                    if ($flgStatusAnterior === 'C' && $flgStatusNuevo === 'O') {
+                        $flgRevision = 0;
+                    }
+
+                } else {
+                    $flgRevision = 0;
+                }
+
+                // =============================
+                // DATOS A GUARDAR
+                // =============================
                 $datos = [
 
-                    // =============================
-                    // IDS (NOT NULL NUMERICOS)
-                    // =============================
+                    // IDS
                     'idNodoPerspectiva' => $this->limpiarString($item['idNodoPerspectiva'] ?? ''),
                     'idSync' => $this->limpiarIntNullable($item['idSync'] ?? null),
                     'idSyncNodo' => $this->limpiarStringNullable($item['idSyncNodo'] ?? null),
@@ -150,23 +169,14 @@ class SyncCybernetOldController extends Controller
                     'idUsuario' => $this->limpiarInt($item['idUsuario'] ?? 0),
                     'idUsuarioNodo' => $this->limpiarString($item['idUsuarioNodo'] ?? ''),
 
-                    // =============================
                     // TEXTOS
-                    // =============================
                     'dscMonitoreo' => $this->limpiarString($item['dscMonitoreo'] ?? ''),
                     'etiqueta' => $this->limpiarString($item['etiqueta'] ?? ''),
                     'numReintentos' => $this->limpiarInt($item['numReintentos'] ?? 0),
-
                     'paramametroScript' => $this->limpiarStringNullable($item['paramametroScript'] ?? null),
 
-                    // =============================
-                    // PARAMETROS (según tu tabla)
-                    // =============================
-
-                    // INT NULLABLE
+                    // PARAMETROS
                     'paramNumPort' => $this->limpiarIntNullable($item['paramNumPort'] ?? null),
-
-                    // VARCHAR en BD → NO CASTEAR A INT
                     'paramNumPackets' => $this->limpiarStringNullable($item['paramNumPackets'] ?? null),
                     'paramTimeout' => $this->limpiarStringNullable($item['paramTimeout'] ?? null),
                     'paramWarningUmbral' => $this->limpiarStringNullable($item['paramWarningUmbral'] ?? null),
@@ -174,12 +184,9 @@ class SyncCybernetOldController extends Controller
 
                     'anotacion' => $this->limpiarStringNullable($item['anotacion'] ?? null),
                     'cuentasNotificacion' => $this->limpiarStringNullable($item['cuentasNotificacion'] ?? null),
-
                     'intervaloNotificacion' => $this->limpiarInt($item['intervaloNotificacion'] ?? 0),
 
-                    // =============================
                     // FECHAS
-                    // =============================
                     'fechaUltimaVerificacion' => $item['fechaUltimaVerificacion'] ?? null,
                     'fechaUltimoCambio' => $item['fechaUltimoCambio'] ?? null,
                     'fechaUltimaNotificacion' => $item['fechaUltimaNotificacion'] ?? null,
@@ -193,12 +200,10 @@ class SyncCybernetOldController extends Controller
                     'fechaSyncHijo' => $fechaSyncHijo,
                     'fechaSyncPadre' => $fechaSyncPadre,
 
-                    // =============================
                     // FLAGS
-                    // =============================
                     'flgMonitoreoIp' => $this->limpiarFlg($item['flgMonitoreoIp'] ?? 0),
-                    'flgRevision' => $this->limpiarFlg($item['flgRevision'] ?? 0),
-                    'flgStatus' => $item['flgStatus'] ?? 'O', // ENUM especial
+                    'flgRevision' => $flgRevision,
+                    'flgStatus' => $flgStatusNuevo,
                     'flgStatusControl' => $this->limpiarInt($item['flgStatusControl'] ?? 0),
                     'flgCondicionSolucionado' => $this->limpiarFlg($item['flgCondicionSolucionado'] ?? 0),
                     'flgOcultarMonitoreo' => $this->limpiarFlg($item['flgOcultarMonitoreo'] ?? 0),
@@ -210,24 +215,25 @@ class SyncCybernetOldController extends Controller
                     'flgSyncHijo' => '1',
                     'flgSyncPadre' => '1',
 
-                    // =============================
                     // OTROS
-                    // =============================
                     'temporal' => $this->limpiarStringNullable($item['temporal'] ?? null),
-
                     'cantidad_alertas' => $this->limpiarInt($item['cantidad_alertas'] ?? 0),
                     'porcentaje_alertas' => $this->limpiarInt($item['porcentaje_alertas'] ?? 0),
                 ];
 
                 if ($registroPadre) {
-                    DB::table('monMonitoreo')->where('idMonitoreo', $registroPadre->idMonitoreo)->update($datos);
+                    DB::table('monMonitoreo')
+                        ->where('idMonitoreo', $registroPadre->idMonitoreo)
+                        ->update($datos);
                 } else {
-                    DB::table('monMonitoreo')->insert(array_merge(['idMonitoreo' => $item['idMonitoreo']], $datos));
+                    DB::table('monMonitoreo')
+                        ->insert(array_merge(['idMonitoreo' => $item['idMonitoreo']], $datos));
                 }
 
                 $updatedRecords[] = [
                     "idNodo" => $sysNodo->idNodo,
                     "idMonitoreo" => $item['idMonitoreo'],
+                    "flgRevision" => $flgRevision,
                     "flgSolucionado" => $flgSolucionado,
                     "fechaSyncHijo" => $fechaSyncHijo->toDateTimeString(),
                     "fechaSyncPadre" => $fechaSyncPadre->toDateTimeString(),
@@ -240,6 +246,7 @@ class SyncCybernetOldController extends Controller
             "updated" => $updatedRecords
         ]);
     }
+
 
 
 
@@ -865,7 +872,7 @@ class SyncCybernetOldController extends Controller
                     "idNodo" => $nodo->idNodo,
                     "idMonitoreo" => $item['idMonitoreo'],
                     "flgSolucionado" => $flgSolucionado,
-                     "flgStatus" => $item['flgStatus'],
+                    "flgStatus" => $item['flgStatus'],
 
                     "fechaSyncHijo" => $fechaSyncHijo->toDateTimeString(),
                     "fechaSyncPadre" => $fechaSyncPadre->toDateTimeString(),

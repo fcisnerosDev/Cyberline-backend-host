@@ -162,6 +162,12 @@ class TicketsController extends Controller
             $query->whereIn('flgStatus', $flgStatusArray);
         }
 
+        if ($user->idPersonaPerspectiva === 'CSF') {
+            $query->soloSolicitantesCSF();
+
+            // dd($query->toSql(), $query->getBindings());
+        }
+
         /*
         |--------------------------------------------------------------------------
         | Paginación
@@ -207,6 +213,9 @@ class TicketsController extends Controller
 
             $ticket->estadoNombre = EstadoHelper::getNombreEstado($ticket->idEstado);
         }
+
+
+        // dd($user->idPersonaPerspectiva);
 
         return response()->json($response);
     }
