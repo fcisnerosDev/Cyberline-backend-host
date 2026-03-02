@@ -123,24 +123,36 @@ class SyncCybernetOldController extends Controller
                 }
 
                 // =============================
-                // CONTROL INTELIGENTE DE REVISION
-                // =============================
+// CONTROL INTELIGENTE DE REVISION
+// =============================
                 $flgStatusNuevo = $item['flgStatus'] ?? 'O';
 
                 if ($registroPadre) {
 
                     $flgStatusAnterior = $registroPadre->flgStatus;
-
                     $flgRevision = $registroPadre->flgRevision ?? '0';
 
-                    // SOLO si cambia de C → O
+                    // Usar el valor ya guardado en BD para evitar inconsistencias de sync
+                    $flgCondicionSolucionado = $registroPadre->flgCondicionSolucionado ?? '0';
+
+                    // Detectar cambio de Crítico → OK
                     if ($flgStatusAnterior === 'C' && $flgStatusNuevo === 'O') {
-                        $flgRevision = '0';
+
+                        if ($flgCondicionSolucionado === '1') {
+                            // No retirar automáticamente: mantener en revisión
+                            $flgRevision = '1';
+                        } else {
+                            // Comportamiento normal: quitar revisión
+                            $flgRevision = '0';
+                        }
                     }
 
                 } else {
                     $flgRevision = '0';
                 }
+
+
+
 
                 // NORMALIZAR A ENUM STRING
                 $flgRevision = ($flgRevision == '1') ? '1' : '0';
@@ -209,7 +221,10 @@ class SyncCybernetOldController extends Controller
                     'flgStatus' => $flgStatusNuevo,
                     'flgStatusControl' => $this->limpiarInt($item['flgStatusControl'] ?? 0),
                     'flgCondicionSolucionado' => $this->limpiarFlg($item['flgCondicionSolucionado'] ?? 0),
-                    'flgOcultarMonitoreo' => $this->limpiarFlg($item['flgOcultarMonitoreo'] ?? 0),
+                    // 'flgOcultarMonitoreo' => $this->limpiarFlg($item['flgOcultarMonitoreo'] ?? 0),
+                    'flgOcultarMonitoreo' => $registroPadre
+                        ? $registroPadre->flgOcultarMonitoreo
+                        : $this->limpiarFlg($item['flgOcultarMonitoreo'] ?? 0),
                     'flgSonido' => $this->limpiarFlg($item['flgSonido'] ?? 0),
                     'flgSolucionado' => $flgSolucionado,
                     'flgEstado' => $item['flgEstado'] ?? '0',
