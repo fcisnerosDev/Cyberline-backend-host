@@ -123,8 +123,8 @@ class SyncCybernetOldController extends Controller
                 }
 
                 // =============================
-// CONTROL INTELIGENTE DE REVISION
-// =============================
+                // CONTROL INTELIGENTE DE REVISION
+                // =============================
                 $flgStatusNuevo = $item['flgStatus'] ?? 'O';
 
                 if ($registroPadre) {
@@ -156,6 +156,12 @@ class SyncCybernetOldController extends Controller
 
                 // NORMALIZAR A ENUM STRING
                 $flgRevision = ($flgRevision == '1') ? '1' : '0';
+
+                // =============================
+// REGLA AUTOMATICA OCULTAR MONITOREO
+// =============================
+                $flgOcultarMonitoreo =
+                    ($flgStatusNuevo === 'O' && $flgSolucionado == '1') ? '1' : '0';
                 // =============================
                 // DATOS A GUARDAR
                 // =============================
@@ -221,7 +227,7 @@ class SyncCybernetOldController extends Controller
                     'flgStatus' => $flgStatusNuevo,
                     'flgStatusControl' => $this->limpiarInt($item['flgStatusControl'] ?? 0),
                     'flgCondicionSolucionado' => $this->limpiarFlg($item['flgCondicionSolucionado'] ?? 0),
-                    'flgOcultarMonitoreo' => '0',
+                    'flgOcultarMonitoreo' => $flgOcultarMonitoreo,
                     // 'flgOcultarMonitoreo' => $registroPadre
                     //     ? $registroPadre->flgOcultarMonitoreo
                     //     : $this->limpiarFlg($item['flgOcultarMonitoreo'] ?? 0),
