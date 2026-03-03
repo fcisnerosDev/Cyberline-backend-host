@@ -221,10 +221,10 @@ class SyncCybernetOldController extends Controller
                     'flgStatus' => $flgStatusNuevo,
                     'flgStatusControl' => $this->limpiarInt($item['flgStatusControl'] ?? 0),
                     'flgCondicionSolucionado' => $this->limpiarFlg($item['flgCondicionSolucionado'] ?? 0),
-                    // 'flgOcultarMonitoreo' => $this->limpiarFlg($item['flgOcultarMonitoreo'] ?? 0),
-                    'flgOcultarMonitoreo' => $registroPadre
-                        ? $registroPadre->flgOcultarMonitoreo
-                        : $this->limpiarFlg($item['flgOcultarMonitoreo'] ?? 0),
+                    'flgOcultarMonitoreo' => '0',
+                    // 'flgOcultarMonitoreo' => $registroPadre
+                    //     ? $registroPadre->flgOcultarMonitoreo
+                    //     : $this->limpiarFlg($item['flgOcultarMonitoreo'] ?? 0),
                     'flgSonido' => $this->limpiarFlg($item['flgSonido'] ?? 0),
                     'flgSolucionado' => $flgSolucionado,
                     'flgEstado' => $item['flgEstado'] ?? '0',
