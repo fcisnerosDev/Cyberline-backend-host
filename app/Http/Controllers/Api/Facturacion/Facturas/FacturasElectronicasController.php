@@ -415,6 +415,21 @@ class FacturasElectronicasController extends Controller
         );
     }
 
+    public function enviarBajaFactura($id)
+    {
+        if (!$id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'El id es obligatorio.'
+            ], 400);
+        }
+
+        $endpoint = "api/invoice/{$id}/baja";
+
+        $respuesta = $this->consumirServicioFacturacion($endpoint, [], 'POST');
+
+        return response()->json($respuesta);
+    }
 
 
 }
