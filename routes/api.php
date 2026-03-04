@@ -137,6 +137,7 @@ Route::controller(FacturasElectronicasController::class)->group(function () {
     Route::get('/facturacion/servicios', 'ServiciosAll')->name('FE.ServiciosAll');
     Route::get('/facturacion/reporte', 'exportFacturas')->name('FE.exportFacturas');
     Route::get('/facturacion/descarga/{id}', 'downloadPdf')->name('FE.exportDowndFacturas');
+    Route::post('/facturacion/baja/{id}', 'enviarBajaFactura')->name('FE.enviarBajaFactura');
 
 
 
@@ -152,7 +153,7 @@ Route::controller(FacturasElectronicasController::class)->group(function () {
 Route::controller(MonitoreoAgenteController::class)->group(function () {
     // Modulo detalle Monitoreo
     Route::get('/sedes', 'getListSede')->name('getListSede');
-     Route::get('/equipos', 'getEquipos')->name('getEquipos');
+    Route::get('/equipos', 'getEquipos')->name('getEquipos');
 
 
 });
@@ -181,9 +182,9 @@ Route::group(['prefix' => 'auth'], function () {
 });
 
 
- Route::controller(HelpdeskMailController::class)->group(function () {
-        Route::get('/inbox/pagination', 'readInbox')->name('readInbox.pagination');
-        Route::get('/bandeja/pagination', 'BandejaLectura')->name('BandejaLectura.pagination');
+Route::controller(HelpdeskMailController::class)->group(function () {
+    Route::get('/inbox/pagination', 'readInbox')->name('readInbox.pagination');
+    Route::get('/bandeja/pagination', 'BandejaLectura')->name('BandejaLectura.pagination');
 
 
-    });
+});
