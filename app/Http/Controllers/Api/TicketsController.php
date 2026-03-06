@@ -215,7 +215,7 @@ class TicketsController extends Controller
         }
 
 
-        // dd($user->idPersonaPerspectiva);
+        //  dd($user->idPersonaPerspectiva);
 
         return response()->json($response);
     }

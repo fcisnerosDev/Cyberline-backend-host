@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Facturacion\Facturas;
 
 use App\Exports\FacturasExport;
+use App\Models\Facturacion_Nuevo\FacturasProgramadas;
 use App\Models\Facturacion_Nuevo\MetodosPago;
 use App\Models\Facturacion_Nuevo\services;
 use App\Models\Facturacion_Nuevo\ServiceType;
@@ -264,6 +265,17 @@ class FacturasElectronicasController extends Controller
         return response()->json($respuesta);
     }
 
+    public function enviarFacturaProgramada(Request $request)
+    {
+        // Datos que se enviarán
+        $data = $request->all();
+        $endpoint = 'api/invoice/programado';
+
+        $respuesta = $this->consumirServicioFacturacion($endpoint, $data, 'POST');
+
+        return response()->json($respuesta);
+    }
+
     public function generateMailNotasCredito($correlativo)
     {
         $notaCredito = NotasCredito::where('correlativo', $correlativo)->first();
@@ -430,6 +442,65 @@ class FacturasElectronicasController extends Controller
 
         return response()->json($respuesta);
     }
+    public function indexPaginationProgramadas(Request $request)
+    {
+        $query = FacturasProgramadas::with('client')
+            ->where('supplier_id', 3);
 
+        // filtro por activo
+        if ($request->filled('activo')) {
+            $query->where('activo', $request->activo);
+        }
+
+        // filtro por frecuencia
+        if ($request->filled('frecuencia')) {
+            $query->where('frecuencia', $request->frecuencia);
+        }
+
+        // filtro por RUC cliente
+        if ($request->filled('ruc')) {
+            $query->whereHas('client', function ($q) use ($request) {
+                $q->where('num_doc', 'like', "%{$request->ruc}%");
+            });
+        }
+
+        // filtro por razon social
+        if ($request->filled('cliente')) {
+            $query->whereHas('client', function ($q) use ($request) {
+                $q->where('rznSocial', 'like', "%{$request->cliente}%");
+            });
+        }
+
+        // filtro por descripcion
+        if ($request->filled('descripcion')) {
+            $query->where('descripcion', 'like', "%{$request->descripcion}%");
+        }
+
+        // filtro por rango fecha inicio
+        if ($request->filled('start_date') && $request->filled('end_date')) {
+            $query->whereDate('fecha_inicio', '>=', $request->start_date)
+                ->whereDate('fecha_inicio', '<=', $request->end_date);
+        }
+
+        // filtro por fecha específica
+        if ($request->filled('fecha')) {
+            $query->whereDate('fecha_inicio', $request->fecha);
+        }
+
+        $response = $query->orderBy('id', 'desc')->paginate(20);
+
+        $response->setCollection(
+            $response->getCollection()->transform(function ($recurring) {
+
+                $recurring->estado = $recurring->activo
+                    ? "Activo"
+                    : "Inactivo";
+
+                return $recurring;
+            })
+        );
+
+        return response()->json($response);
+    }
 
 }

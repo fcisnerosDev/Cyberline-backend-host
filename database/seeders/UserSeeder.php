@@ -14,9 +14,9 @@ class UserSeeder extends Seeder
     public function run(): void
     {
         DB::table('maePersona')
-            ->where('idPersona', 3297)
+            ->where('idPersona', 3518)
             ->update([
-                'password' => Hash::make('Clsf205$3231#21')
+                'password' => Hash::make('Clsf249$3231#42')
             ]);
     }
 }
