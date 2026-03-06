@@ -139,7 +139,7 @@ Route::controller(FacturasElectronicasController::class)->group(function () {
     Route::get('/facturacion/descarga/{id}', 'downloadPdf')->name('FE.exportDowndFacturas');
     Route::post('/facturacion/baja/{id}', 'enviarBajaFactura')->name('FE.enviarBajaFactura');
     Route::get('/facturacion/facturas/pagination', 'indexPagination')->name('fe.pagination');
-    Route::get('/facturacion/facturas/programada/', 'indexPaginationProgramadas')->name('indexPaginationProgramadas.get');
+    Route::get('/facturacion/facturas/programada', 'indexPaginationProgramadas')->name('indexPaginationProgramadas.get');
 
 
 
