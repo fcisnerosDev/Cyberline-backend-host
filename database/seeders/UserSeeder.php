@@ -2,21 +2,25 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\DB;
+use App\Models\UserCyberV6;
 use Illuminate\Support\Facades\Hash;
+
 class UserSeeder extends Seeder
 {
-    /**
-     * Run the database seeds.
-     */
     public function run(): void
     {
-        DB::table('maePersona')
-            ->where('idPersona', 3518)
-            ->update([
-                'password' => Hash::make('Clsf249$3231#42')
-            ]);
+        $users = [
+            3518 => 'Clsf241$323142',  // Contraseña para ID 3518
+            3455 => 'Clsf246$323143',  // Contraseña para ID 3455 (similar)
+        ];
+
+        foreach ($users as $id => $password) {
+            $user = UserCyberV6::where('idPersona', $id)->first();
+            if ($user) {
+                $user->password = Hash::make($password);
+                $user->save();
+            }
+        }
     }
 }

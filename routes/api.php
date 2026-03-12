@@ -140,6 +140,8 @@ Route::controller(FacturasElectronicasController::class)->group(function () {
     Route::post('/facturacion/baja/{id}', 'enviarBajaFactura')->name('FE.enviarBajaFactura');
     Route::get('/facturacion/facturas/pagination', 'indexPagination')->name('fe.pagination');
     Route::get('/facturacion/facturas/programada', 'indexPaginationProgramadas')->name('indexPaginationProgramadas.get');
+    Route::post('/facturacion/programada/enviar', 'enviarFacturaProgramada')->name('enviarFacturaProgramada.post');
+
 
 
 
