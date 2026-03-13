@@ -505,5 +505,5 @@ class FacturasElectronicasController extends Controller
 
 
 
-    
+
 }
