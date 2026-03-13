@@ -22,7 +22,7 @@ trait ServiceFacturacionTrait
             $response = Http::withHeaders([
                 'Accept' => 'application/json',
                 'Content-Type' => 'application/json',
-            ])->{$method}("$baseUrl/$endpoint", $data);
+            ])->post("$baseUrl/$endpoint", $data);
 
             if ($response->successful()) {
                 return $response->json();
