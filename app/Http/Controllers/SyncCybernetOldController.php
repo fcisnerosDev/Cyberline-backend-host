@@ -160,18 +160,11 @@ class SyncCybernetOldController extends Controller
                 // =============================
 // REGLA AUTOMATICA OCULTAR MONITOREO
 // =============================
-                $flgOcultarMonitoreo = '0';
-
-                if ($flgStatusNuevo === 'O' && $flgSolucionado == '1') {
-                    $flgOcultarMonitoreo = '1';
-                }
-
-                if ($flgStatusNuevo === 'C') {
-                    $flgOcultarMonitoreo = '0';
-                }
-                // =============================
-                // DATOS A GUARDAR
-                // =============================
+                $flgOcultarMonitoreo = $this->calcularOcultarMonitoreo(
+                    $flgStatusNuevo,
+                    $flgRevision,
+                    $flgSolucionado
+                );
                 $datos = [
 
                     // IDS
@@ -280,8 +273,34 @@ class SyncCybernetOldController extends Controller
 
 
 
+    private function calcularOcultarMonitoreo($flgStatus, $flgRevision, $flgSolucionado)
+    {
+        echo "---- calcularOcultarMonitoreo ----" . PHP_EOL;
 
+        $flgStatus = $flgStatus ?? 'O';
+        $flgRevision = ($flgRevision == '1') ? '1' : '0';
+        $flgSolucionado = ($flgSolucionado == '1') ? '1' : '0';
 
+        echo "Status: " . $flgStatus . PHP_EOL;
+        echo "Revision: " . $flgRevision . PHP_EOL;
+        echo "Solucionado: " . $flgSolucionado . PHP_EOL;
+
+        // Si vuelve a crítico nunca se oculta
+        if ($flgStatus === 'C') {
+            echo "Resultado: NO OCULTAR (Status Critico)" . PHP_EOL;
+            return '0';
+        }
+
+        // Solo ocultar cuando esté OK y solucionado con revisión
+        if ($flgStatus === 'O' && $flgRevision === '1' && $flgSolucionado === '1') {
+            echo "Resultado: OCULTAR MONITOREO" . PHP_EOL;
+            return '1';
+        }
+
+        echo "Resultado: NO OCULTAR (Condiciones no cumplidas)" . PHP_EOL;
+
+        return '0';
+    }
 
     private function limpiarFlg($valor)
     {
