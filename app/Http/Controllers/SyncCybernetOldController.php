@@ -42,7 +42,6 @@ class SyncCybernetOldController extends Controller
         return ($v !== null) ? (string) $v : '';
     }
 
-
     public function UpdateMonitoreoData($idNodo = null)
     {
         $idNodos = $this->getValidNodoIdForCybernetPrimary($idNodo);
@@ -78,18 +77,14 @@ class SyncCybernetOldController extends Controller
 
             foreach ($data['data'] as $item) {
 
-                // =============================
                 // LIMPIEZA DE FECHAS
-                // =============================
                 foreach ($item as $key => $value) {
                     if (Str::startsWith($key, 'fecha')) {
                         $item[$key] = $this->limpiarFecha($value);
                     }
                 }
 
-                // =============================
                 // BUSCAR REGISTRO PADRE
-                // =============================
                 $registroPadre = DB::table('monMonitoreo')
                     ->where('idMonitoreo', $item['idMonitoreo'])
                     ->orWhere(function ($q) use ($item) {
@@ -100,70 +95,42 @@ class SyncCybernetOldController extends Controller
                     })
                     ->first();
 
-                // =============================
                 // PROTEGER FLG SOLUCIONADO
-                // =============================
                 $flgSolucionado = $this->limpiarFlg($item['flgSolucionado'] ?? 0);
-
                 if ($registroPadre && $registroPadre->flgSolucionado == 1) {
                     $flgSolucionado = 1;
                 }
 
-                // =============================
                 // MANEJO DE FECHAS SYNC
-                // =============================
                 $fechaSyncHijo = $this->limpiarFecha($item['fechaSyncHijo'] ?? null)
                     ? \Carbon\Carbon::parse($item['fechaSyncHijo'])
                     : now();
-
                 $fechaSyncPadre = now();
-
                 if ($fechaSyncPadre->lessThanOrEqualTo($fechaSyncHijo)) {
                     $fechaSyncPadre = $fechaSyncHijo->copy()->addSeconds(2);
                 }
 
-                // =============================
                 // CONTROL INTELIGENTE DE REVISION
-                // =============================
                 $flgStatusNuevo = $item['flgStatus'] ?? 'O';
+                $flgRevision = '0';
 
                 if ($registroPadre) {
-
                     $flgStatusAnterior = $registroPadre->flgStatus;
                     $flgRevision = $registroPadre->flgRevision ?? '0';
-
-                    // Usar el valor ya guardado en BD para evitar inconsistencias de sync
                     $flgCondicionSolucionado = $registroPadre->flgCondicionSolucionado ?? '0';
 
-                    // Detectar cambio de Crítico → OK
+                    // Detectar cambio Crítico → OK
                     if ($flgStatusAnterior === 'C' && $flgStatusNuevo === 'O') {
-
-                        if ($flgCondicionSolucionado === '1') {
-                            // No retirar automáticamente: mantener en revisión
-                            $flgRevision = '1';
-                        } else {
-                            // Comportamiento normal: quitar revisión
-                            $flgRevision = '0';
-                        }
+                        $flgRevision = ($flgCondicionSolucionado === '1') ? '1' : '0';
                     }
-
-                } else {
-                    $flgRevision = '0';
                 }
-
-
-
 
                 // NORMALIZAR A ENUM STRING
                 $flgRevision = ($flgRevision == '1') ? '1' : '0';
 
-                // =============================
-// REGLA AUTOMATICA OCULTAR MONITOREO
-// =============================
+                // REGLA AUTOMATICA OCULTAR MONITOREO SOLO PARA OCITCS
                 $flgOcultarMonitoreo = '0';
-
                 if (($item['idNodoPerspectiva'] ?? '') === 'OCITCS') {
-
                     $flgOcultarMonitoreo = $this->calcularOcultarMonitoreo(
                         $item['idMonitoreo'],
                         $item['idNodoPerspectiva'],
@@ -171,8 +138,9 @@ class SyncCybernetOldController extends Controller
                         $flgRevision,
                         $flgSolucionado
                     );
-
                 }
+
+                // DATOS A GUARDAR
                 $datos = [
 
                     // IDS
@@ -251,6 +219,7 @@ class SyncCybernetOldController extends Controller
                     'temporal' => $this->limpiarStringNullable($item['temporal'] ?? null),
                     'cantidad_alertas' => $this->limpiarInt($item['cantidad_alertas'] ?? 0),
                     'porcentaje_alertas' => $this->limpiarInt($item['porcentaje_alertas'] ?? 0),
+
                 ];
 
                 if ($registroPadre) {
@@ -267,6 +236,7 @@ class SyncCybernetOldController extends Controller
                     "idMonitoreo" => $item['idMonitoreo'],
                     "flgRevision" => $flgRevision,
                     "flgSolucionado" => $flgSolucionado,
+                    "flgOcultarMonitoreo" => $flgOcultarMonitoreo,
                     "fechaSyncHijo" => $fechaSyncHijo->toDateTimeString(),
                     "fechaSyncPadre" => $fechaSyncPadre->toDateTimeString(),
                 ];
@@ -281,17 +251,17 @@ class SyncCybernetOldController extends Controller
 
 
 
+
     private function calcularOcultarMonitoreo($idMonitoreo, $idNodoPerspectiva, $flgStatus, $flgRevision, $flgSolucionado)
     {
         echo "---- calcularOcultarMonitoreo ----" . PHP_EOL;
-        echo "idMonitoreo: " . $idMonitoreo . PHP_EOL;
-        echo "idNodoPerspectiva: " . $idNodoPerspectiva . PHP_EOL;
+        echo "idMonitoreo: $idMonitoreo" . PHP_EOL;
+        echo "idNodoPerspectiva: $idNodoPerspectiva" . PHP_EOL;
+        echo "Status: $flgStatus | Revision: $flgRevision | Solucionado: $flgSolucionado" . PHP_EOL;
 
         $flgStatus = $flgStatus ?? 'O';
         $flgRevision = ($flgRevision == '1') ? '1' : '0';
         $flgSolucionado = ($flgSolucionado == '1') ? '1' : '0';
-
-        echo "Status: $flgStatus | Revision: $flgRevision | Solucionado: $flgSolucionado" . PHP_EOL;
 
         $flgOcultarMonitoreo = '0';
 
@@ -307,13 +277,9 @@ class SyncCybernetOldController extends Controller
 
         echo "Resultado flgOcultarMonitoreo: $flgOcultarMonitoreo" . PHP_EOL;
 
-        // =============================
         // SOLO PARA NODO OCITCS
-        // =============================
         if ($idNodoPerspectiva === "OCITCS") {
-
             echo "Actualizando BD para idMonitoreo: $idMonitoreo" . PHP_EOL;
-
             DB::table('monMonitoreo')
                 ->where('idMonitoreo', $idMonitoreo)
                 ->update([
