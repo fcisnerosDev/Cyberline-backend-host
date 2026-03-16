@@ -160,13 +160,19 @@ class SyncCybernetOldController extends Controller
                 // =============================
 // REGLA AUTOMATICA OCULTAR MONITOREO
 // =============================
-                $flgOcultarMonitoreo = $this->calcularOcultarMonitoreo(
-                    $item['idMonitoreo'],
-                    $item['idNodoPerspectiva'] ?? '',
-                    $flgStatusNuevo,
-                    $flgRevision,
-                    $flgSolucionado
-                );
+                $flgOcultarMonitoreo = '0';
+
+                if (($item['idNodoPerspectiva'] ?? '') === 'OCITCS') {
+
+                    $flgOcultarMonitoreo = $this->calcularOcultarMonitoreo(
+                        $item['idMonitoreo'],
+                        $item['idNodoPerspectiva'],
+                        $flgStatusNuevo,
+                        $flgRevision,
+                        $flgSolucionado
+                    );
+
+                }
                 $datos = [
 
                     // IDS
