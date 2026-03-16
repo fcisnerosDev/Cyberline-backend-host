@@ -161,6 +161,8 @@ class SyncCybernetOldController extends Controller
 // REGLA AUTOMATICA OCULTAR MONITOREO
 // =============================
                 $flgOcultarMonitoreo = $this->calcularOcultarMonitoreo(
+                    $item['idMonitoreo'],
+                    $item['idNodoPerspectiva'] ?? '',
                     $flgStatusNuevo,
                     $flgRevision,
                     $flgSolucionado
@@ -273,34 +275,49 @@ class SyncCybernetOldController extends Controller
 
 
 
-    private function calcularOcultarMonitoreo($flgStatus, $flgRevision, $flgSolucionado)
+    private function calcularOcultarMonitoreo($idMonitoreo, $idNodoPerspectiva, $flgStatus, $flgRevision, $flgSolucionado)
     {
         echo "---- calcularOcultarMonitoreo ----" . PHP_EOL;
+        echo "idMonitoreo: " . $idMonitoreo . PHP_EOL;
+        echo "idNodoPerspectiva: " . $idNodoPerspectiva . PHP_EOL;
 
         $flgStatus = $flgStatus ?? 'O';
         $flgRevision = ($flgRevision == '1') ? '1' : '0';
         $flgSolucionado = ($flgSolucionado == '1') ? '1' : '0';
 
-        echo "Status: " . $flgStatus . PHP_EOL;
-        echo "Revision: " . $flgRevision . PHP_EOL;
-        echo "Solucionado: " . $flgSolucionado . PHP_EOL;
+        echo "Status: $flgStatus | Revision: $flgRevision | Solucionado: $flgSolucionado" . PHP_EOL;
+
+        $flgOcultarMonitoreo = '0';
 
         // Si vuelve a crítico nunca se oculta
         if ($flgStatus === 'C') {
-            echo "Resultado: NO OCULTAR (Status Critico)" . PHP_EOL;
-            return '0';
+            $flgOcultarMonitoreo = '0';
         }
 
         // Solo ocultar cuando esté OK y solucionado con revisión
         if ($flgStatus === 'O' && $flgRevision === '1' && $flgSolucionado === '1') {
-            echo "Resultado: OCULTAR MONITOREO" . PHP_EOL;
-            return '1';
+            $flgOcultarMonitoreo = '1';
         }
 
-        echo "Resultado: NO OCULTAR (Condiciones no cumplidas)" . PHP_EOL;
+        echo "Resultado flgOcultarMonitoreo: $flgOcultarMonitoreo" . PHP_EOL;
 
-        return '0';
+        // =============================
+        // SOLO PARA NODO OCITCS
+        // =============================
+        if ($idNodoPerspectiva === "OCITCS") {
+
+            echo "Actualizando BD para idMonitoreo: $idMonitoreo" . PHP_EOL;
+
+            DB::table('monMonitoreo')
+                ->where('idMonitoreo', $idMonitoreo)
+                ->update([
+                    'flgOcultarMonitoreo' => $flgOcultarMonitoreo
+                ]);
+        }
+
+        return $flgOcultarMonitoreo;
     }
+
 
     private function limpiarFlg($valor)
     {
