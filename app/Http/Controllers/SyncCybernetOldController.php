@@ -160,8 +160,15 @@ class SyncCybernetOldController extends Controller
                 // =============================
 // REGLA AUTOMATICA OCULTAR MONITOREO
 // =============================
-                $flgOcultarMonitoreo =
-                    ($flgStatusNuevo === 'O' && $flgSolucionado == '1') ? '1' : '0';
+                $flgOcultarMonitoreo = '0';
+
+                if ($flgStatusNuevo === 'O' && $flgSolucionado == '1') {
+                    $flgOcultarMonitoreo = '1';
+                }
+
+                if ($flgStatusNuevo === 'C') {
+                    $flgOcultarMonitoreo = '0';
+                }
                 // =============================
                 // DATOS A GUARDAR
                 // =============================
