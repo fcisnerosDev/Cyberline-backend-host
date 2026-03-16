@@ -187,7 +187,10 @@ Route::group(['prefix' => 'auth'], function () {
 
 
 Route::controller(HelpdeskMailController::class)->group(function () {
-    Route::get('/inbox/pagination', 'readInbox')->name('readInbox.pagination');
+    // Route::get('/inbox/pagination', 'readInbox')->name('readInbox.pagination');
+    // Route::get('/bandeja/pagination', 'BandejaLectura')->name('BandejaLectura.pagination');
+
+    // Route::get('/inbox/pagination', 'readInbox')->name('readInbox.pagination');
     Route::get('/bandeja/pagination', 'BandejaLectura')->name('BandejaLectura.pagination');
 
 
