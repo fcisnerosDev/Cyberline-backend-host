@@ -343,22 +343,22 @@ class FacturasElectronicasController extends Controller
     }
 
 
-    // public function EnviarEstadoNC(Request $request)
-    // {
-    //     $data = $request->all();
+    public function EnviarEstadoNC(Request $request)
+    {
+        $data = $request->all();
 
-    //     // Asegúrate de que el campo 'invoice' venga en el request
-    //     if (!isset($data['invoice'])) {
-    //         return response()->json(['error' => true, 'message' => 'Falta el ID de la factura (invoice)'], 422);
-    //     }
+        // Asegúrate de que el campo 'invoice' venga en el request
+        if (!isset($data['invoice'])) {
+            return response()->json(['error' => true, 'message' => 'Falta el ID de la factura (invoice)'], 422);
+        }
 
-    //     $invoiceId = $data['invoice'];
-    //     $endpoint = "api/invoices/{$invoiceId}/estado";
+        $invoiceId = $data['invoice'];
+        $endpoint = "api/invoices/{$invoiceId}/estado";
 
-    //     $respuesta = $this->consumirServicioFacturacion($endpoint, $data, 'PUT');
+        $respuesta = $this->consumirServicioFacturacion($endpoint, $data, 'PUT');
 
-    //     return response()->json($respuesta);
-    // }
+        return response()->json($respuesta);
+    }
     public function GetClientes(Request $request)
     {
         $clientes = Compania::with('oficinaPrincipal')
