@@ -355,7 +355,7 @@ class FacturasElectronicasController extends Controller
         $invoiceId = $data['invoice'];
         $endpoint = "api/invoices/{$invoiceId}/estado";
 
-        $respuesta = $this->consumirServicioFacturacion($endpoint, $data, 'PUT');
+        $respuesta = $this->consumirServicioFacturacionEstados($endpoint, $data, 'PUT');
 
         return response()->json($respuesta);
     }
