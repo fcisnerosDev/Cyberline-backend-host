@@ -105,7 +105,7 @@ Route::controller(NotasCreditoController::class)->group(function () {
     Route::get('/facturacion/notas-credito/pagination', 'indexPagination')->name('nc.pagination');
     Route::get('/facturacion/search-factura/', 'searchFactura')->name('nc.search');
     Route::post('/facturacion/nota-credito/enviar', 'enviarNotaCredito')->name('nc.post');
-    Route::get('/facturacion/nota-credito/estados', 'EstadoPagoAll')->name('nc.estados');
+    // Route::get('/facturacion/nota-credito/estados', 'EstadoPagoAll')->name('nc.estados');
     Route::put('/facturacion/nota-credito/enviar-estado', 'EnviarEstadoNC')->name('nc.estados');
 
 
