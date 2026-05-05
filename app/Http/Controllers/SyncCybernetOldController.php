@@ -459,8 +459,8 @@ class SyncCybernetOldController extends Controller
     }
     public function getFilteredEquiposData($idNodos)
     {
-        return Equipo::where('flgEstado', "1")
-            ->whereIn('idEquipoPerspectiva', $idNodos)
+        return Equipo
+            ::whereIn('idEquipoPerspectiva', $idNodos)
             ->get();
     }
     public function getFilteredFrecuenciaData($idNodos)
