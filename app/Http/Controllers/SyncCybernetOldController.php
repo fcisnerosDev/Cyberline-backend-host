@@ -410,8 +410,13 @@ class SyncCybernetOldController extends Controller
      */
     public function getFilteredMonitoreoData($idNodos)
     {
-        return Monitoreo::where('flgEstado', "1")
-            ->whereIn('idNodoPerspectiva', $idNodos) // Filtrar por múltiples nodos
+        return Monitoreo::whereIn('idNodoPerspectiva', $idNodos)
+            ->where(function ($q) use ($idNodos) {
+
+                $q->whereIn('idMonitoreoNodo', $idNodos)
+                    ->orWhere('idMonitoreoNodo', 'CYB');
+
+            })
             ->get();
     }
 
