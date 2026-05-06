@@ -440,21 +440,21 @@ class SyncCybernetOldController extends Controller
 
     public function getFilteredServicioData($idNodos)
     {
-        return Servicio::where('flgEstado', "1")
-            ->whereIn('idNodoPerspectiva', $idNodos)
+        return Servicio::
+            whereIn('idNodoPerspectiva', $idNodos)
             ->get();
     }
 
     public function getFilteredMaestroData($idNodos)
     {
-        return Maestro::where('flgEstado', "1")
-            ->whereIn('idNodoPerspectiva', $idNodos)
+        return Maestro::
+            whereIn('idNodoPerspectiva', $idNodos)
             ->get();
     }
     public function getFilteredIpData($idNodos)
     {
-        return Ip::where('flgEstado', "1")
-            ->whereIn('idNodoPerspectiva', $idNodos)
+        return Ip::
+            whereIn('idNodoPerspectiva', $idNodos)
             ->get();
     }
     public function getFilteredEquiposData($idNodos)
@@ -465,8 +465,8 @@ class SyncCybernetOldController extends Controller
     }
     public function getFilteredFrecuenciaData($idNodos)
     {
-        return Frecuencia::where('flgEstado', "1")
-            ->whereIn('idNodoPerspectiva', $idNodos)
+        return Frecuencia::
+            whereIn('idNodoPerspectiva', $idNodos)
             ->get();
     }
 
