@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\HelpdeskMailController;
 use App\Http\Controllers\Api\Monitoreo\MonitoreoAgenteController;
 use App\Http\Controllers\Api\Monitoreo\MonitoreoController;
 use App\Http\Controllers\Api\ReportsController;
+use App\Http\Controllers\Api\SyncItsmClientsController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\TicketsController;
 use Illuminate\Http\Request;
@@ -192,6 +193,15 @@ Route::controller(HelpdeskMailController::class)->group(function () {
 
     // Route::get('/inbox/pagination', 'readInbox')->name('readInbox.pagination');
     Route::get('/bandeja/pagination', 'BandejaLectura')->name('BandejaLectura.pagination');
+
+
+});
+
+Route::controller(SyncItsmClientsController::class)->group(function () {
+    // Route::get('/itsm/pagination', 'AllSyncITSM')->name('AllSyncITSM.pagination');
+    Route::get('/itsm/sync/', 'AllSyncITSM')->name('AllSyncITSM.pagination');
+
+    Route::get('/itsm/bandeja/', 'ticketsPorCategoria')->name('ticketsPorCategoria');
 
 
 });
