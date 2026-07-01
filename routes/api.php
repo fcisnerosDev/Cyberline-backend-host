@@ -191,8 +191,9 @@ Route::controller(HelpdeskMailController::class)->group(function () {
     // Route::get('/inbox/pagination', 'readInbox')->name('readInbox.pagination');
     // Route::get('/bandeja/pagination', 'BandejaLectura')->name('BandejaLectura.pagination');
 
-    // Route::get('/inbox/pagination', 'readInbox')->name('readInbox.pagination');
+    Route::get('/inbox/pagination', 'readInbox')->name('readInbox.pagination');
     Route::get('/bandeja/pagination', 'BandejaLectura')->name('BandejaLectura.pagination');
+    // Route::get('/bandeja/oci', 'BandejaOCI')->name('BandejaLectura.pagination');
 
 
 });
@@ -200,8 +201,5 @@ Route::controller(HelpdeskMailController::class)->group(function () {
 Route::controller(SyncItsmClientsController::class)->group(function () {
     // Route::get('/itsm/pagination', 'AllSyncITSM')->name('AllSyncITSM.pagination');
     Route::get('/itsm/sync/', 'AllSyncITSM')->name('AllSyncITSM.pagination');
-
     Route::get('/itsm/bandeja/', 'ticketsPorCategoria')->name('ticketsPorCategoria');
-
-
 });

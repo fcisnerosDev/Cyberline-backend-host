@@ -13,178 +13,249 @@ use Illuminate\Support\Facades\Storage;
 
 class HelpdeskMailController extends Controller
 {
-    // public function readInbox()
-    // {
-    //     try {
-    //         $cm = new ClientManager();
+    public function readInbox()
+    {
+        try {
 
-    //         $client = $cm->make([
-    //             'host' => env('IMAP_HOST'),
-    //             'port' => env('IMAP_PORT'),
-    //             'encryption' => env('IMAP_ENCRYPTION'),
-    //             'validate_cert' => env('IMAP_VALIDATE_CERT', true),
-    //             'username' => env('IMAP_USERNAME'),
-    //             'password' => env('IMAP_PASSWORD'),
-    //             'protocol' => env('IMAP_PROTOCOL', 'imap'),
-    //         ]);
+            // PASO 1
+            // dd('ENTRO AL METODO');
 
-    //         $client->connect();
-    //         $inbox = $client->getFolder('INBOX');
+            $cm = new ClientManager();
 
-    //         $messages = $inbox->messages()
-    //             ->unseen()
-    //             ->setFetchBody(true)
-    //             ->limit(10)
-    //             ->get();
+            $client = $cm->make([
+                'host' => env('IMAP_HOST'),
+                'port' => env('IMAP_PORT'),
+                'encryption' => env('IMAP_ENCRYPTION'),
+                'validate_cert' => env('IMAP_VALIDATE_CERT', true),
+                'username' => env('IMAP_USERNAME'),
+                'password' => env('IMAP_PASSWORD'),
+                'protocol' => env('IMAP_PROTOCOL', 'imap'),
+            ]);
 
-    //         $data = [];
+            // PASO 2
+            // dd([
+            //     'host' => env('IMAP_HOST'),
+            //     'port' => env('IMAP_PORT'),
+            //     'user' => env('IMAP_USERNAME'),
+            //     'protocol' => env('IMAP_PROTOCOL'),
+            //     'encryption' => env('IMAP_ENCRYPTION'),
+            // ]);
 
-    //         foreach ($messages as $message) {
+            $client->connect();
 
-    //             $messageId = $this->normalize($message->getMessageId());
+            // PASO 3
+            // dd('CONECTADO IMAP');
 
-    //             if (HelpdeskMessage::where('message_id', $messageId)->exists()) {
-    //                 continue;
-    //             }
+            $folders = $client->getFolders();
 
-    //             // =========================
-    //             // Fecha (sin romper timezone)
-    //             // =========================
-    //             $dateAttr = (string) $message->getDate();
-    //             $localDate = Carbon::parse($dateAttr)
-    //                 ->setTimezone('America/Lima')
-    //                 ->format('Y-m-d H:i:s');
+            // PASO 4
+            $folderList = [];
 
-    //             // =========================
-    //             // Body base (SIEMPRE existe)
-    //             // =========================
-    //             $htmlBody = $message->getHTMLBody();
-    //             $textBody = $message->getTextBody();
-    //             $body = $htmlBody ?? $textBody;
+            foreach ($folders as $folder) {
+                $folderList[] = [
+                    'name' => $folder->name ?? null,
+                    'path' => $folder->path ?? null,
+                ];
+            }
 
-    //             // =========================
-    //             // Guardar mensaje
-    //             // =========================
-    //             $helpdeskMessage = HelpdeskMessage::create([
-    //                 'message_id' => $messageId,
-    //                 'subject' => $this->normalize($message->getSubject()),
-    //                 'from_name' => $message->getFrom()[0]->personal ?? null,
-    //                 'from_email' => $message->getFrom()[0]->mail ?? null,
-    //                 'body' => $body,
-    //                 'seen' => $message->hasFlag('Seen'),
-    //                 'date' => $localDate,
-    //             ]);
+            // dd($folderList);
 
-    //             // =========================
-    //             // TO
-    //             // =========================
-    //             $tos = $this->parseAddresses($message->getTo());
-    //             foreach ($tos as $to) {
-    //                 HelpdeskRecipient::create([
-    //                     'message_id' => $helpdeskMessage->id,
-    //                     'type' => 'to',
-    //                     'name' => $to['name'],
-    //                     'email' => $to['email'],
-    //                     'full' => $to['full'],
-    //                 ]);
-    //             }
+            $inbox = $client->getFolder('INBOX');
 
-    //             // =========================
-    //             // CC
-    //             // =========================
-    //             $ccs = $this->parseAddresses($message->getCc());
-    //             foreach ($ccs as $cc) {
-    //                 HelpdeskRecipient::create([
-    //                     'message_id' => $helpdeskMessage->id,
-    //                     'type' => 'cc',
-    //                     'name' => $cc['name'],
-    //                     'email' => $cc['email'],
-    //                     'full' => $cc['full'],
-    //                 ]);
-    //             }
+            // PASO 5
+            // dd([
+            //     'name' => $inbox->name ?? null,
+            //     'path' => $inbox->path ?? null,
+            // ]);
 
-    //             // =========================
-    //             // Attachments + CID
-    //             // =========================
-    //             foreach ($message->getAttachments() as $attachment) {
+            $messages = $inbox->messages()
+                ->all()
+                ->limit(100)
+                ->get();
 
-    //                 $content = $attachment->getContent();
-    //                 if (!$content) {
-    //                     continue;
-    //                 }
+            // PASO 6
+            // dd([
+            //     'cantidad_mensajes' => $messages->count()
+            // ]);
 
-    //                 $originalName = $attachment->getName() ?: 'attachment';
-    //                 $safeName = time() . '_' . preg_replace('/[^a-zA-Z0-9_\.-]/', '_', $originalName);
-    //                 $path = 'helpdesk_attachments/' . $safeName;
+            $data = [];
 
-    //                 Storage::disk('public')->put($path, $content);
+            foreach ($messages as $message) {
 
-    //                 // ===== NORMALIZAR CID UNA SOLA VEZ =====
-    //                 $rawCid = $attachment->getContentId();
-    //                 $cid = $rawCid ? trim($rawCid, '<>') : null;
+                // PASO 7
+                // dd([
+                //     'subject' => $message->getSubject(),
+                //     'message_id' => $message->getMessageId(),
+                //     'from' => $message->getFrom(),
+                // ]);
 
-    //                 // Reemplazo CID → URL pública en el body
-    //                 if ($cid && $body) {
-    //                     $publicUrl = asset('storage/' . $path);
+                $from = $message->getFrom();
 
-    //                     $body = str_replace(
-    //                         [
-    //                             'cid:' . $cid,
-    //                             'cid:<' . $cid . '>',
-    //                             'cid:&lt;' . $cid . '&gt;',
-    //                         ],
-    //                         $publicUrl,
-    //                         $body
-    //                     );
-    //                 }
+                $fromEmail = strtolower(
+                    $from[0]->mail ?? ''
+                );
 
-    //                 HelpdeskAttachment::create([
-    //                     'message_id' => $helpdeskMessage->id,
-    //                     'filename' => $safeName,
-    //                     'mime_type' => $attachment->getContentType(),
-    //                     'path' => $path,
+                $fromName = $from[0]->personal ?? null;
 
-    //                     'content_id' => $cid,
-    //                 ]);
-    //             }
+                // SOLO OCI
+                if (
+                    $fromEmail !== 'noreply@notification.sa-santiago-1.oci.oraclecloud.com'
+                ) {
+                    continue;
+                }
 
+                $messageId = $this->normalize(
+                    $message->getMessageId()
+                );
 
-    //             // =========================
-    //             // Actualizar body final
-    //             // =========================
-    //             $helpdeskMessage->update(['body' => $body]);
+                if (
+                    HelpdeskMessage::where(
+                        'message_id',
+                        $messageId
+                    )->exists()
+                ) {
+                    continue;
+                }
 
-    //             // =========================
-    //             // Response
-    //             // =========================
-    //             $data[] = [
-    //                 'message_id' => $helpdeskMessage->message_id,
-    //                 'subject' => $helpdeskMessage->subject,
-    //                 'from' => [
-    //                     'mail' => $helpdeskMessage->from_email,
-    //                     'name' => $helpdeskMessage->from_name,
-    //                 ],
-    //                 'to' => $tos,
-    //                 'cc' => $ccs,
-    //                 'date' => $localDate,
-    //                 'seen' => $helpdeskMessage->seen,
-    //                 'body' => $helpdeskMessage->body,
-    //             ];
-    //         }
+                $localDate = Carbon::parse(
+                    (string) $message->getDate()
+                )
+                    ->setTimezone('America/Lima')
+                    ->format('Y-m-d H:i:s');
 
-    //         return response([
-    //             'status' => 'ok',
-    //             'count' => count($data),
-    //             'messages' => $data,
-    //         ]);
+                $htmlBody = $message->getHTMLBody();
+                $textBody = $message->getTextBody();
 
-    //     } catch (Exception $e) {
-    //         return response([
-    //             'status' => 'error',
-    //             'message' => $e->getMessage(),
-    //         ], 500);
-    //     }
-    // }
+                $body = $htmlBody ?: $textBody ?: '';
+
+                $helpdeskMessage = HelpdeskMessage::create([
+                    'message_id' => $messageId,
+                    'subject' => $this->normalize(
+                        $message->getSubject()
+                    ),
+                    'from_name' => $fromName,
+                    'from_email' => $fromEmail,
+                    'body' => $body,
+                    'seen' => $message->hasFlag('Seen'),
+                    'date' => $localDate,
+                ]);
+
+                $tos = $this->parseAddresses(
+                    $message->getTo()
+                );
+
+                foreach ($tos as $to) {
+                    HelpdeskRecipient::create([
+                        'message_id' => $helpdeskMessage->id,
+                        'type' => 'to',
+                        'name' => $to['name'],
+                        'email' => $to['email'],
+                        'full' => $to['full'],
+                    ]);
+                }
+
+                $ccs = $this->parseAddresses(
+                    $message->getCc()
+                );
+
+                foreach ($ccs as $cc) {
+                    HelpdeskRecipient::create([
+                        'message_id' => $helpdeskMessage->id,
+                        'type' => 'cc',
+                        'name' => $cc['name'],
+                        'email' => $cc['email'],
+                        'full' => $cc['full'],
+                    ]);
+                }
+
+                foreach ($message->getAttachments() as $attachment) {
+
+                    $content = $attachment->getContent();
+
+                    if (empty($content)) {
+                        continue;
+                    }
+
+                    $originalName = $attachment->getName() ?: 'attachment';
+
+                    $safeName = time() . '_' .
+                        preg_replace(
+                            '/[^a-zA-Z0-9_\.-]/',
+                            '_',
+                            $originalName
+                        );
+
+                    $path = 'helpdesk_attachments/' . $safeName;
+
+                    Storage::disk('public')->put(
+                        $path,
+                        $content
+                    );
+
+                    $rawCid = $attachment->getContentId();
+
+                    $cid = $rawCid
+                        ? trim($rawCid, '<>')
+                        : null;
+
+                    if ($cid && $body) {
+
+                        $publicUrl = asset(
+                            'storage/' . $path
+                        );
+
+                        $body = str_replace(
+                            [
+                                'cid:' . $cid,
+                                'cid:<' . $cid . '>',
+                                'cid:&lt;' . $cid . '&gt;',
+                            ],
+                            $publicUrl,
+                            $body
+                        );
+                    }
+
+                    HelpdeskAttachment::create([
+                        'message_id' => $helpdeskMessage->id,
+                        'filename' => $safeName,
+                        'mime_type' => $attachment->getContentType(),
+                        'path' => $path,
+                        'content_id' => $cid,
+                    ]);
+                }
+
+                $helpdeskMessage->update([
+                    'body' => $body
+                ]);
+
+                $data[] = [
+                    'message_id' => $helpdeskMessage->message_id,
+                    'subject' => $helpdeskMessage->subject,
+                    'from' => [
+                        'mail' => $helpdeskMessage->from_email,
+                        'name' => $helpdeskMessage->from_name,
+                    ],
+                    'date' => $localDate,
+                ];
+            }
+
+            return response()->json([
+                'status' => 'ok',
+                'count' => count($data),
+                'messages' => $data,
+            ]);
+
+        } catch (Exception $e) {
+
+            return response()->json([
+                'status' => 'error',
+                'message' => $e->getMessage(),
+                'line' => $e->getLine(),
+                'file' => $e->getFile(),
+                'trace' => $e->getTraceAsString(),
+            ], 500);
+        }
+    }
 
 
 
@@ -192,53 +263,53 @@ class HelpdeskMailController extends Controller
     // /**
     //  * Normaliza los destinatarios del mensaje
     //  */
-    // private function parseAddresses($addresses): array
-    // {
-    //     if (!$addresses) {
-    //         return [];
-    //     }
+    private function parseAddresses($addresses): array
+    {
+        if (!$addresses) {
+            return [];
+        }
 
-    //     $results = [];
+        $results = [];
 
-    //     // Convertir todo a array de strings
-    //     $list = is_array($addresses) ? $addresses : [$addresses];
+        // Convertir todo a array de strings
+        $list = is_array($addresses) ? $addresses : [$addresses];
 
-    //     foreach ($list as $addr) {
-    //         $full = trim($this->normalize($addr));
+        foreach ($list as $addr) {
+            $full = trim($this->normalize($addr));
 
-    //         // Ignorar placeholders "to" o "cc"
-    //         if (in_array(strtolower($full), ['to', 'cc'])) {
-    //             continue;
-    //         }
+            // Ignorar placeholders "to" o "cc"
+            if (in_array(strtolower($full), ['to', 'cc'])) {
+                continue;
+            }
 
-    //         // Separar por comas, manejando nombres con <correo>
-    //         $parts = preg_split('/,\s*(?=[^,]+<)/', $full);
+            // Separar por comas, manejando nombres con <correo>
+            $parts = preg_split('/,\s*(?=[^,]+<)/', $full);
 
-    //         foreach ($parts as $part) {
-    //             $part = trim($part);
-    //             if (empty($part))
-    //                 continue;
+            foreach ($parts as $part) {
+                $part = trim($part);
+                if (empty($part))
+                    continue;
 
-    //             $name = null;
-    //             $email = null;
+                $name = null;
+                $email = null;
 
-    //             if (preg_match('/(.*)<(.+)>/', $part, $matches)) {
-    //                 $name = trim($matches[1]);
-    //                 $email = trim($matches[2]);
-    //             } else {
-    //                 $email = $part;
-    //             }
+                if (preg_match('/(.*)<(.+)>/', $part, $matches)) {
+                    $name = trim($matches[1]);
+                    $email = trim($matches[2]);
+                } else {
+                    $email = $part;
+                }
 
-    //             $results[] = [
-    //                 'full' => $part,
-    //                 'name' => $name,
-    //                 'email' => $email,
-    //             ];
-    //         }
-    //     }
+                $results[] = [
+                    'full' => $part,
+                    'name' => $name,
+                    'email' => $email,
+                ];
+            }
+        }
 
-    //     return $results;
-    // }
+        return $results;
+    }
 
 
 
@@ -246,74 +317,70 @@ class HelpdeskMailController extends Controller
     // /**
     //  * Normaliza cualquier valor (string, array, objeto)
     //  */
-    // private function normalize($value)
-    // {
-    //     if (is_array($value)) {
-    //         return implode(', ', array_map('strval', $value));
-    //     }
-
-    //     if (is_object($value)) {
-    //         return method_exists($value, '__toString')
-    //             ? (string) $value
-    //             : json_encode($value);
-    //     }
-
-    //     return $value;
-    // }
-
-
-
-
-    // public function BandejaLectura()
-    // {
-    //     $storageUrl = env('STORAGE_URL'); // toma la URL desde .env
-    //     $messages = HelpdeskMessage::with(['toRecipients', 'ccRecipients', 'attachments'])
-    //         ->orderBy('created_at', 'desc')
-    //         ->paginate(20);
-
-    //     $messages->getCollection()->transform(function ($message) use ($storageUrl) {
-    //         return [
-    //             'message_id' => $message->message_id,
-    //             'subject' => $message->subject,
-    //             'from' => [
-    //                 'mail' => $message->from_email,
-    //                 'name' => $message->from_name,
-    //             ],
-    //             'to' => $message->toRecipients->map(function ($r) {
-    //                 return [
-    //                     'full' => $r->full,
-    //                     'name' => $r->name,
-    //                     'email' => $r->email,
-    //                 ];
-    //             }),
-    //             'cc' => $message->ccRecipients->map(function ($r) {
-    //                 return [
-    //                     'full' => $r->full,
-    //                     'name' => $r->name,
-    //                     'email' => $r->email,
-    //                 ];
-    //             }),
-    //             'attachments' => $message->attachments->map(function ($a) use ($storageUrl) {
-    //                 return [
-    //                     'filename' => $a->filename,
-    //                     'mime_type' => $a->mime_type,
-    //                     'content_id' => $a->content_id,
-    //                     'url' => $storageUrl . '/storage/' . $a->path,
-    //                 ];
-    //             }),
-    //             'date' => $message->date->format('Y-m-d H:i:s'),
-    //             'seen' => $message->seen,
-    //             'body' => $message->body,
-    //         ];
-    //     });
-
-    //     return response()->json($messages);
-    // }
-
-
-
-    public function bandejaOld()
+    private function normalize($value)
     {
+        if (is_array($value)) {
+            return implode(', ', array_map('strval', $value));
+        }
 
+        if (is_object($value)) {
+            return method_exists($value, '__toString')
+                ? (string) $value
+                : json_encode($value);
+        }
+
+        return $value;
     }
+
+
+
+
+    public function BandejaLectura()
+    {
+        $storageUrl = env('STORAGE_URL'); // toma la URL desde .env
+        $messages = HelpdeskMessage::with(['toRecipients', 'ccRecipients', 'attachments'])
+            ->orderBy('created_at', 'desc')
+            ->paginate(20);
+
+        $messages->getCollection()->transform(function ($message) use ($storageUrl) {
+            return [
+                'message_id' => $message->message_id,
+                'subject' => $message->subject,
+                'from' => [
+                    'mail' => $message->from_email,
+                    'name' => $message->from_name,
+                ],
+                'to' => $message->toRecipients->map(function ($r) {
+                    return [
+                        'full' => $r->full,
+                        'name' => $r->name,
+                        'email' => $r->email,
+                    ];
+                }),
+                'cc' => $message->ccRecipients->map(function ($r) {
+                    return [
+                        'full' => $r->full,
+                        'name' => $r->name,
+                        'email' => $r->email,
+                    ];
+                }),
+                'attachments' => $message->attachments->map(function ($a) use ($storageUrl) {
+                    return [
+                        'filename' => $a->filename,
+                        'mime_type' => $a->mime_type,
+                        'content_id' => $a->content_id,
+                        'url' => $storageUrl . '/storage/' . $a->path,
+                    ];
+                }),
+                'date' => $message->date->format('Y-m-d H:i:s'),
+                'seen' => $message->seen,
+                'body' => $message->body,
+            ];
+        });
+
+        return response()->json($messages);
+    }
+
+
+
 }
