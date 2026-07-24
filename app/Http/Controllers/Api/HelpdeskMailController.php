@@ -381,6 +381,4 @@ class HelpdeskMailController extends Controller
         return response()->json($messages);
     }
 
-
-
 }

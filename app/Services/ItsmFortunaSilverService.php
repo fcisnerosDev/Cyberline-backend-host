@@ -218,7 +218,7 @@ class ItsmFortunaSilverService
             'Session-Token' => $sessionToken,
             'App-Token' => $this->appToken,
             'Accept' => 'application/json',
-        ])->get($this->url . '/Ticket/');
+        ])->get($this->url . '/Ticket/?sort=id&order=DESC&range=0-40');
 
         if (!$response->successful()) {
             return [
