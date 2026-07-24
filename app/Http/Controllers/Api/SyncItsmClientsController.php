@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Models\AtencionCybernet;
 use App\Models\CybTicketItsmSync;
 use App\Models\Oficina;
 use App\Models\OficinaItsm;
@@ -227,7 +228,7 @@ class SyncItsmClientsController extends Controller
                 | Enviar atenciones Cybernet como followups a Fortuna
                 |--------------------------------------------------------------------------
                 */
-                $atenciones = cybAtencion::where('idTicket', $ticket->idTicket)
+                $atenciones = AtencionCybernet::where('idTicket', $ticket->idTicket)
                     ->where('flgNoenviar', '0')
                     ->get();
 
