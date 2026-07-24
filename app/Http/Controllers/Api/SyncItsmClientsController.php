@@ -7,7 +7,7 @@ use App\Models\Oficina;
 use App\Models\OficinaItsm;
 use App\Models\OficinaPersona;
 use App\Models\Persona;
-use App\Models\CybAtencion;
+use App\Models\cybAtencion;
 use App\Services\ItsmFortunaSilverService;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
@@ -227,7 +227,7 @@ class SyncItsmClientsController extends Controller
                 | Enviar atenciones Cybernet como followups a Fortuna
                 |--------------------------------------------------------------------------
                 */
-                $atenciones = CybAtencion::where('idTicket', $ticket->idTicket)
+                $atenciones = cybAtencion::where('idTicket', $ticket->idTicket)
                     ->where('flgNoenviar', '0')
                     ->get();
 

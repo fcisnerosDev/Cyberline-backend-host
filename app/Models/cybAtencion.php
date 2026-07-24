@@ -5,7 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class CybAtencion extends Model
+class cybAtencion extends Model
 {
     use HasFactory;
     protected $table = 'cybAtencion';
