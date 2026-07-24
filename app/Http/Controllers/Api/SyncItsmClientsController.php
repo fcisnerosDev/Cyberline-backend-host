@@ -227,7 +227,7 @@ class SyncItsmClientsController extends Controller
                 | Enviar atenciones Cybernet como followups a Fortuna
                 |--------------------------------------------------------------------------
                 */
-                $atenciones = cybAtencion::where('idTicket', $ticket->idTicket)
+                $atenciones = CybAtencion::where('idTicket', $ticket->idTicket)
                     ->where('flgNoenviar', '0')
                     ->get();
 
